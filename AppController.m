@@ -13,7 +13,6 @@
 #import "Safari.h"
 #import "iTunes.h"
 #import <Growl/Growl.h>
-#import "JRFeedbackController.h"
 #import "ReasonForFailure.h"
 #import "Chrome.h"
 #import "NPHistoryWindowController.h"
@@ -37,26 +36,26 @@ NewProgrammeHistory           *sharedHistoryController;
     //Initialization
     if (!(self = [super init])) return nil;
     sharedController = self;
-    
+
     sharedHistoryController = [NewProgrammeHistory sharedInstance];
     NSNotificationCenter *nc;
     nc = [NSNotificationCenter defaultCenter];
-    
+
     //Initialize Arrays for Controllers
     _searchResultsArray = [NSMutableArray array];
     _pvrSearchResultsArray = [NSMutableArray array];
     _pvrQueueArray = [NSMutableArray array];
     _queueArray = [NSMutableArray array];
-    
+
     //Look for Start notifications for ASS
     [nc addObserver:self
            selector:@selector(applescriptStartDownloads) name:@"StartDownloads"
              object:nil];
-    
+
 
     //Register Default Preferences
     NSMutableDictionary *defaultValues = [[NSMutableDictionary alloc] init];
-    
+
     NSString *defaultDownloadDirectory = @"~/Movies/TV Shows";
     defaultValues[@"DownloadPath"] = defaultDownloadDirectory.stringByExpandingTildeInPath;
     defaultValues[@"Proxy"] = @"None";
@@ -114,7 +113,7 @@ NewProgrammeHistory           *sharedHistoryController;
 
     [[NSUserDefaults standardUserDefaults] registerDefaults:defaultValues];
     defaultValues = nil;
-    
+
     //Migrate old AudioDescribed option
     if ([[NSUserDefaults standardUserDefaults] objectForKey:@"AudioDescribed"]) {
         [[NSUserDefaults standardUserDefaults] setObject:@YES forKey:@"AudioDescribedNew"];
@@ -138,7 +137,7 @@ NewProgrammeHistory           *sharedHistoryController;
         [fileManager createDirectoryAtPath:folder withIntermediateDirectories:NO attributes:nil error:nil];
     }
     [fileManager changeCurrentDirectoryPath:folder];
-    
+
     //Install Plugins If Needed
     NSString *pluginPath = [folder stringByAppendingPathComponent:@"plugins"];
     if (/*![fileManager fileExistsAtPath:pluginPath]*/TRUE)
@@ -149,8 +148,8 @@ NewProgrammeHistory           *sharedHistoryController;
         providedPath = [providedPath stringByAppendingPathComponent:@"/Contents/Resources/plugins"];
         [fileManager copyItemAtPath:providedPath toPath:pluginPath error:nil];
     }
-    
-    
+
+
     //Initialize Arguments
     _getiPlayerPath = [[NSString alloc] initWithString:[NSBundle mainBundle].bundlePath];
     _getiPlayerPath = [_getiPlayerPath stringByAppendingString:@"/Contents/Resources/get_iplayer"];
@@ -167,13 +166,13 @@ NewProgrammeHistory           *sharedHistoryController;
     [NSValueTransformer setValueTransformer:_radioFormatTransformer forName:@"RadioFormatTransformer"];
     [NSValueTransformer setValueTransformer:_itvFormatTransformer forName:@"ITVFormatTransformer"];
     _verbose = [[NSUserDefaults standardUserDefaults] boolForKey:@"Verbose"];
-    
+
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(itvUpdateFinished) name:@"ITVUpdateFinished" object:nil];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(forceITVUpdateFinished) name:@"ForceITVUpdateFinished" object:nil];
     _forceITVUpdateInProgress = NO;
     newITVListing =  [[GetITVShows alloc] init];
 
-    
+
     return self;
 }
 #pragma mark Delegate Methods
@@ -182,28 +181,28 @@ NewProgrammeHistory           *sharedHistoryController;
     //Initialize Search Results Click Actions
     _searchResultsTable.target = self;
     _searchResultsTable.doubleAction = @selector(addToQueue:);
-    
+
     _tvFormatList = [NSMutableArray array];
     _itvFormatList = [NSMutableArray array];
     _radioFormatList = [NSMutableArray array];
-    
+
     //Read Queue & Series-Link from File
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    
+
     NSString *folder = @"~/Library/Application Support/Get iPlayer Automator/";
     folder = folder.stringByExpandingTildeInPath;
     if ([fileManager fileExistsAtPath: folder] == NO)
     {
         [fileManager createDirectoryAtPath:folder withIntermediateDirectories:NO attributes:nil error:nil];
     }
-    
+
     // remove obsolete cache files
     [fileManager removeItemAtPath:[folder stringByAppendingPathComponent:@"ch4.cache"] error:nil];
     [fileManager removeItemAtPath:[folder stringByAppendingPathComponent:@"podcast.cache"] error:nil];
-    
+
     NSString *filename = @"Queue.automatorqueue";
     NSString *filePath = [folder stringByAppendingPathComponent:filename];
-    
+
     NSDictionary * rootObject;
     @try
     {
@@ -223,12 +222,12 @@ NewProgrammeHistory           *sharedHistoryController;
         [fileManager removeItemAtPath:filePath error:nil];
         rootObject=nil;
     }
-    
+
     //Read Format Preferences
-    
+
     filename = @"Formats.automatorqueue";
     filePath = [folder stringByAppendingPathComponent:filename];
-    
+
     @try
     {
         rootObject = [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
@@ -257,7 +256,7 @@ NewProgrammeHistory           *sharedHistoryController;
             [_radioFormatController removeObject:radioFormat];
         }
     }
-    
+
     filename = @"ITVFormats.automator";
     filePath = [folder stringByAppendingPathComponent:filename];
     @try {
@@ -268,7 +267,7 @@ NewProgrammeHistory           *sharedHistoryController;
         [fileManager removeItemAtPath:filePath error:nil];
         rootObject=nil;
     }
-    
+
     //Adds Defaults to Type Preferences
     if ([_tvFormatController.arrangedObjects count] == 0)
     {
@@ -300,7 +299,7 @@ NewProgrammeHistory           *sharedHistoryController;
         format2.format = @"Flash - High";
         [_itvFormatController addObjects:@[format0, format1, format2]];
     }
-    
+
     //Growl Initialization
     @try {
         [GrowlApplicationBridge setGrowlDelegate:(id<GrowlApplicationBridgeDelegate>)@""];
@@ -309,12 +308,12 @@ NewProgrammeHistory           *sharedHistoryController;
         NSLog(@"ERROR: Growl initialisation failed: %@: %@", e.name, e.description);
         [_logger addToLog:[NSString stringWithFormat:@"ERROR: Growl initialisation failed: %@: %@", e.name, e.description]];
     }
-    
+
     //Remove SWFinfo
     NSString *infoPath = @"~/.swfinfo";
     infoPath = infoPath.stringByExpandingTildeInPath;
     if ([fileManager fileExistsAtPath:infoPath]) [fileManager removeItemAtPath:infoPath error:nil];
-    
+
     [self updateCache:nil];
 }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)application
@@ -345,7 +344,7 @@ NewProgrammeHistory           *sharedHistoryController;
         NSInteger response = [updateAlert runModal];
         if (response == NSAlertDefaultReturn) return NSTerminateCancel;
     }
-    
+
     return NSTerminateNow;
 }
 - (BOOL)windowShouldClose:(id)sender
@@ -375,7 +374,7 @@ NewProgrammeHistory           *sharedHistoryController;
             NSInteger response = [downloadAlert runModal];
             if (response == NSAlertDefaultReturn) return NO;
             else return YES;
-            
+
         }
         return YES;
     }
@@ -390,7 +389,7 @@ NewProgrammeHistory           *sharedHistoryController;
     //End Downloads if Running
     if (runDownloads)
         [_currentDownload cancelDownload];
-    
+
     [self saveAppData];
 }
 
@@ -408,7 +407,7 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     @try
     {
-        
+
         [GrowlApplicationBridge notifyWithTitle:@"Update Available!"
                                     description:[NSString stringWithFormat:@"Get iPlayer Automator %@ is available.",update.displayVersionString]
                                notificationName:@"New Version Available"
@@ -483,7 +482,7 @@ NewProgrammeHistory           *sharedHistoryController;
     runUpdate=YES;
     _didUpdate=NO;
     [_mainWindow setDocumentEdited:YES];
-    
+
     NSArray *tempQueue = _queueController.arrangedObjects;
     for (Programme *show in tempQueue)
     {
@@ -492,7 +491,7 @@ NewProgrammeHistory           *sharedHistoryController;
             [_queueController removeObject:show];
         }
     }
-    
+
     //UI might not be loaded yet
     @try
     {
@@ -515,11 +514,11 @@ NewProgrammeHistory           *sharedHistoryController;
     @catch (NSException *e) {
         NSLog(@"NO UI");
     }
-    
+
     if (proxyDict) {
         _proxy = proxyDict[@"proxy"];
     }
-    
+
     if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"CacheITV_TV"] isEqualTo:@YES])
     {
         _updatingITVIndex = true;
@@ -530,7 +529,7 @@ NewProgrammeHistory           *sharedHistoryController;
 
         [newITVListing itvUpdateWithNewLogger:_logger];
     }
-    
+
     _updatingBBCIndex = true;
 
     NSString *cacheExpiryArg;
@@ -542,49 +541,49 @@ NewProgrammeHistory           *sharedHistoryController;
     {
         cacheExpiryArg = [[NSString alloc] initWithFormat:@"-e%d", ([[[NSUserDefaults standardUserDefaults] objectForKey:@"CacheExpiryTime"] intValue]*3600)];
     }
-    
+
     NSString *typeArgument = [[GetiPlayerArguments sharedController] typeArgumentForCacheUpdate:YES andIncludeITV:NO];
-    
+
     if (![typeArgument isEqualToString:@"--type"]) {
-        
+
         _getiPlayerUpdateArgs = @[_getiPlayerPath,
                                   cacheExpiryArg,
                                   typeArgument,
                                   @"--nopurge",
                                   [GetiPlayerArguments sharedController].profileDirArg,
                                   @".*"];
-        
+
         if (_proxy && [[[NSUserDefaults standardUserDefaults] valueForKey:@"AlwaysUseProxy"] boolValue])
         {
             _getiPlayerUpdateArgs = [_getiPlayerUpdateArgs arrayByAddingObject:[[NSString alloc] initWithFormat:@"-p%@", _proxy.url]];
         }
-        
+
         [_logger addToLog:@"Updating Programme Index Feeds...\n" :self];
         _currentProgress.stringValue = @"Updating Programme Index Feeds...";
-        
+
         _getiPlayerUpdateTask = [[NSTask alloc] init];
         _getiPlayerUpdateTask.launchPath = @"/usr/bin/perl";
         _getiPlayerUpdateTask.arguments = _getiPlayerUpdateArgs;
         _getiPlayerUpdatePipe = [[NSPipe alloc] init];
         _getiPlayerUpdateTask.standardOutput = _getiPlayerUpdatePipe;
         _getiPlayerUpdateTask.standardError =_getiPlayerUpdatePipe;
-        
+
         NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
-        
+
         [nc addObserver:self
                selector:@selector(dataReady:)
                    name:NSFileHandleReadCompletionNotification
                  object:_getiPlayerUpdatePipe.fileHandleForReading];
         [_getiPlayerUpdatePipe.fileHandleForReading readInBackgroundAndNotify];
-        
+
         NSMutableDictionary *envVariableDictionary = [NSMutableDictionary dictionaryWithDictionary:_getiPlayerUpdateTask.environment];
         envVariableDictionary[@"HOME"] = (@"~").stringByExpandingTildeInPath;
         envVariableDictionary[@"PERL_UNICODE"] = @"AS";
-        
+
         NSString *perlPath = [[NSBundle mainBundle] resourcePath];
         perlPath = [perlPath stringByAppendingPathComponent:@"perl5"];
         envVariableDictionary[@"PERL5LIB"] = perlPath;
-        
+
         _updatingBBCIndex = true;
         _getiPlayerUpdateTask.environment = envVariableDictionary;
         [_getiPlayerUpdateTask launch];
@@ -639,7 +638,7 @@ NewProgrammeHistory           *sharedHistoryController;
         _updatingBBCIndex = false;
         [self getiPlayerUpdateFinished];
     }
-    
+
     // If the task is running, start reading again
     if (_getiPlayerUpdateTask && !matches) {
         [_getiPlayerUpdatePipe.fileHandleForReading readInBackgroundAndNotify];
@@ -648,7 +647,7 @@ NewProgrammeHistory           *sharedHistoryController;
 - (void)itvUpdateFinished
 {
     //  ITV Cache Update Finished - turn off progress display and process data
-    
+
     _updatingITVIndex = false;
     _didUpdate = YES;
     [self.itvProgressIndicator stopAnimation:self];
@@ -663,7 +662,7 @@ NewProgrammeHistory           *sharedHistoryController;
 
     runUpdate=NO;
     [_mainWindow setDocumentEdited:NO];
-    
+
     _getiPlayerUpdatePipe = nil;
     _getiPlayerUpdateTask = nil;
     _currentProgress.stringValue = @"";
@@ -679,7 +678,7 @@ NewProgrammeHistory           *sharedHistoryController;
     [_showNewProgrammesMenuItem setEnabled:YES];
     if (!_forceITVUpdateMenuItem.hidden)
         [_forceITVUpdateMenuItem setEnabled:YES];
-    
+
     if (_didUpdate)
     {
         @try
@@ -705,8 +704,8 @@ NewProgrammeHistory           *sharedHistoryController;
         _runSinceChange=NO;
         [_logger addToLog:@"Index was Up-To-Date." :self];
     }
-    
-    
+
+
     //Long, Complicated Bit of Code that updates the index number.
     //This is neccessary because if the cache is updated, the index number will almost certainly change.
     NSArray *tempQueue = _queueController.arrangedObjects;
@@ -719,7 +718,7 @@ NewProgrammeHistory           *sharedHistoryController;
             NSPipe *newPipe = [[NSPipe alloc] init];
             NSFileHandle *readHandle2 = newPipe.fileHandleForReading;
             NSData *someData;
-            
+
             NSString *name = [show.showName copy];
             NSScanner *scanner = [NSScanner scannerWithString:name];
             NSString *searchArgument;
@@ -734,6 +733,11 @@ NewProgrammeHistory           *sharedHistoryController;
             NSMutableDictionary *envVariableDictionary = [NSMutableDictionary dictionaryWithDictionary:pipeTask.environment];
             envVariableDictionary[@"HOME"] = (@"~").stringByExpandingTildeInPath;
             envVariableDictionary[@"PERL_UNICODE"] = @"AS";
+
+            NSString *perlPath = [[NSBundle mainBundle] resourcePath];
+            perlPath = [perlPath stringByAppendingPathComponent:@"perl5"];
+            envVariableDictionary[@"PERL5LIB"] = perlPath;
+            
             pipeTask.environment = envVariableDictionary;
             [pipeTask launch];
             while ((someData = readHandle2.availableData) && someData.length) {
@@ -742,6 +746,9 @@ NewProgrammeHistory           *sharedHistoryController;
             }
             NSString *string = [NSString stringWithString:taskData];
             NSArray *array = [string componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+            NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+            dateFormatter.dateFormat = @"yyyy'-'MM'-'dd'T'HH':'mm':'ssZZZZZ";
+
             for (NSString *string in array)
             {
                 if (![string isEqualToString:@"Matches:"] && ![string hasPrefix:@"INFO:"] && ![string hasPrefix:@"WARNING:"]
@@ -750,18 +757,17 @@ NewProgrammeHistory           *sharedHistoryController;
                 {
                     @try
                     {
-                        NSScanner *myScanner = [NSScanner scannerWithString:string];
+                        NSArray *matchElements = [string componentsSeparatedByString:@"|"];
+
                         Programme *p = [[Programme alloc] init];
-                        NSString *temp_pid, *temp_showName, *temp_tvNetwork, *temp_type, *url;
-                        [myScanner scanUpToString:@":" intoString:&temp_pid];
-                        [myScanner scanUpToString:@"," intoString:&temp_type];
-                        [myScanner scanString:@", ~" intoString:NULL];
-                        [myScanner scanUpToString:@"~," intoString:&temp_showName];
-                        [myScanner scanString:@"~," intoString:NULL];
-                        [myScanner scanUpToString:@"," intoString:&temp_tvNetwork];
-                        [myScanner scanString:@"," intoString:nil];
-                        [myScanner scanUpToString:@"kljkjkj" intoString:&url];
-                        
+                        NSString *temp_pid, *temp_showName, *temp_tvNetwork, *temp_type, *url, *temp_date;
+                        temp_pid = matchElements[0];
+                        temp_type = matchElements[1];
+                        temp_showName = matchElements[2];
+                        temp_tvNetwork = matchElements[3];
+                        url = matchElements[4];
+                        temp_date = matchElements[5];
+
                         if ([temp_showName hasSuffix:@" - -"])
                         {
                             NSString *temp_showName2;
@@ -770,16 +776,24 @@ NewProgrammeHistory           *sharedHistoryController;
                             temp_showName = temp_showName2;
                             temp_showName = [temp_showName stringByAppendingFormat:@" - %@", temp_showName2];
                         }
-                        [p setValue:temp_pid forKey:@"pid"];
-                        [p setValue:temp_showName forKey:@"showName"];
-                        [p setValue:temp_tvNetwork forKey:@"tvNetwork"];
+                        p.pid =  temp_pid;
+                        p.showName = temp_showName;
+                        p.tvNetwork = temp_tvNetwork;
                         p.url = url;
-                        if ([temp_type isEqualToString:@"radio"]) [p setValue:@YES forKey:@"radio"];
+                        p.lastBroadcast = [dateFormatter dateFromString:temp_date];
+                        p.lastBroadcastString = [NSDateFormatter localizedStringFromDate:p.lastBroadcast dateStyle:NSDateFormatterMediumStyle timeStyle:NSDateFormatterNoStyle];
+
+
+                        if ([temp_type isEqualToString:@"radio"])  {
+                            p.radio = @YES;
+                        }
 
                         if (  [p.url isEqualToString:show.url] && show.url )
                         {
-                            [show setValue:p.pid forKey:@"pid"];
+                            show.pid = p.pid;
                             show.status = @"Available";
+                            show.lastBroadcastString = p.lastBroadcastString;
+                            show.lastBroadcast = p.lastBroadcast;
                             foundMatch=YES;
                             break;
                         }
@@ -808,9 +822,9 @@ NewProgrammeHistory           *sharedHistoryController;
                 [show getName];
             }
         }
-        
+
     }
-    
+
     //Don't want to add these until the cache is up-to-date!
     if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"SeriesLinkStartup"] boolValue])
     {
@@ -824,7 +838,7 @@ NewProgrammeHistory           *sharedHistoryController;
             [self performSelectorOnMainThread:@selector(startDownloads:) withObject:self waitUntilDone:NO];
         }
     }
-    
+
     //Check for Updates - Don't want to prompt the user when updates are running.
     SUUpdater *updater = [SUUpdater sharedUpdater];
     [updater checkForUpdatesInBackground];
@@ -865,7 +879,7 @@ NewProgrammeHistory           *sharedHistoryController;
     [_resultsController setSelectionIndexes:[NSIndexSet indexSet]];
     [_searchIndicator stopAnimation:nil];
     [_resultsController rearrangeObjects];
-    
+
     if (!results.count)
     {
         NSAlert *noneFound = [NSAlert alertWithMessageText:@"No Shows Found"
@@ -902,18 +916,18 @@ NewProgrammeHistory           *sharedHistoryController;
 - (IBAction)getCurrentWebpage:(id)sender
 {
     Programme *p = [GetCurrentWebpage getCurrentWebpage:_logger];
-    
+
     if (p)  {
-    
+
         /* don't allow duplicates */
-    
+
         NSArray *tempQueue = _queueController.arrangedObjects;
         BOOL foundIt = false;
-    
+
         for (Programme *show in tempQueue)
             if ( [show.pid isEqualToString:p.pid] )
                 foundIt = true;
-        
+
         if ( !foundIt )
             [_queueController addObject:p];
     }
@@ -997,11 +1011,11 @@ NewProgrammeHistory           *sharedHistoryController;
         [_stopButton setEnabled:NO];
         return;
     }
-    
+
     if (proxyDict) {
         _proxy = proxyDict[@"proxy"];
     }
-    
+
     NSAlert *whatAnIdiot = [NSAlert alertWithMessageText:@"No Shows in Queue!"
                                            defaultButton:nil
                                          alternateButton:nil
@@ -1014,13 +1028,13 @@ NewProgrammeHistory           *sharedHistoryController;
         if (!_solutionsDictionary)
             _solutionsDictionary = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"ReasonsForFailure" ofType:@"plist"]];
         NSLog(@"Failure Dictionary Ready");
-        
+
         BOOL foundOne=NO;
         runDownloads=YES;
         _runScheduled=NO;
         [_mainWindow setDocumentEdited:YES];
         [_logger addToLog:@"AppController: Starting Downloads\n" :nil];
-        
+
         //Clean-Up Queue
         NSArray *tempQueue = _queueController.arrangedObjects;
         for (Programme *show in tempQueue)
@@ -1060,12 +1074,12 @@ NewProgrammeHistory           *sharedHistoryController;
         {
             //Start First Download
             IOPMAssertionCreateWithDescription(kIOPMAssertionTypePreventUserIdleSystemSleep, (CFStringRef)@"Downloading Show", (CFStringRef)@"GiA is downloading shows.", NULL, NULL, (double)0, NULL, &_powerAssertionID);
-            
+
             NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
             [nc addObserver:self selector:@selector(setPercentage:) name:@"setPercentage" object:nil];
             [nc addObserver:self selector:@selector(setProgress:) name:@"setCurrentProgress" object:nil];
             [nc addObserver:self selector:@selector(nextDownload:) name:@"DownloadFinished" object:nil];
-            
+
             tempQueue = _queueController.arrangedObjects;
             [_logger addToLog:[NSString stringWithFormat:@"\nDownloading Show %lu/%lu:\n",
                               (unsigned long)1,
@@ -1093,7 +1107,7 @@ NewProgrammeHistory           *sharedHistoryController;
             }
             [_startButton setEnabled:NO];
             [_stopButton setEnabled:YES];
-            
+
         }
         else
         {
@@ -1121,7 +1135,7 @@ NewProgrammeHistory           *sharedHistoryController;
 - (IBAction)stopDownloads:(id)sender
 {
     IOPMAssertionRelease(_powerAssertionID);
-    
+
     runDownloads=NO;
     _runScheduled=NO;
     [_currentDownload cancelDownload];
@@ -1136,23 +1150,23 @@ NewProgrammeHistory           *sharedHistoryController;
         _currentProgress.stringValue = @"";
         [_mainWindow setDocumentEdited:NO];
     }
-    
+
     NSNotificationCenter *nc = [NSNotificationCenter defaultCenter];
     [nc removeObserver:self name:@"setPercentage" object:nil];
     [nc removeObserver:self name:@"setCurrentProgress" object:nil];
     [nc removeObserver:self name:@"DownloadFinished" object:nil];
-    
+
     NSArray *tempQueue = _queueController.arrangedObjects;
     for (Programme *show in tempQueue)
         if ([show.status isEqualToString:@"Waiting..."]) show.status = @"";
-    
+
     [NSTimer scheduledTimerWithTimeInterval:2.0 target:self selector:@selector(fixDownloadStatus:) userInfo:_currentDownload repeats:NO];
 }
 - (void)fixDownloadStatus:(NSNotification *)note
 {
     if (!runDownloads)
     {
-        [((Download*)note.userInfo).show setValue:@"Cancelled" forKey:@"status"];
+        ((Download*)note.userInfo).show.status = @"Cancelled";
         _currentDownload=nil;
         NSLog(@"Download should read cancelled");
     }
@@ -1213,7 +1227,7 @@ NewProgrammeHistory           *sharedHistoryController;
         Programme *finishedShow = note.object;
         if (finishedShow.successful.boolValue)
         {
-            [finishedShow setValue:@"Processing..." forKey:@"status"];
+            finishedShow.status = @"Processing...";
             if ([finishedShow.tvNetwork hasPrefix:@"ITV"])
             {
                 [self cleanUpPath:finishedShow];
@@ -1222,8 +1236,8 @@ NewProgrammeHistory           *sharedHistoryController;
             if ([[[NSUserDefaults standardUserDefaults] objectForKey:@"AddCompletedToiTunes"] isEqualTo:@YES])
                 [NSThread detachNewThreadSelector:@selector(addToiTunesThread:) toTarget:self withObject:finishedShow];
             else
-                [finishedShow setValue:@"Download Complete" forKey:@"status"];
-            
+                finishedShow.status = @"Download Complete";
+
             @try
             {
                 [GrowlApplicationBridge notifyWithTitle:@"Download Finished"
@@ -1255,7 +1269,7 @@ NewProgrammeHistory           *sharedHistoryController;
                 NSLog(@"ERROR: Growl notification failed (nextDownload - failed): %@: %@", e.name, e.description);
                 [_logger addToLog:[NSString stringWithFormat:@"ERROR: Growl notification failed (nextDownload - failed): %@: %@", e.name, e.description]];
             }
-            
+
             ReasonForFailure *showSolution = [[ReasonForFailure alloc] init];
             showSolution.showName = finishedShow.showName;
             showSolution.solution = _solutionsDictionary[finishedShow.reasonForFailure];
@@ -1268,9 +1282,9 @@ NewProgrammeHistory           *sharedHistoryController;
             NSLog(@"Added Solution");
             _solutionsTableView.rowHeight = 68;
         }
-        
+
         [self saveAppData]; //Save app data in case of crash.
-        
+
         NSArray *tempQueue = _queueController.arrangedObjects;
         Programme *nextShow=nil;
         NSUInteger showNum=0;
@@ -1313,7 +1327,7 @@ NewProgrammeHistory           *sharedHistoryController;
         {
             //Downloads must be finished.
             IOPMAssertionRelease(_powerAssertionID);
-            
+
             [_stopButton setEnabled:NO];
             [_startButton setEnabled:YES];
             _currentProgress.stringValue = @"";
@@ -1326,10 +1340,10 @@ NewProgrammeHistory           *sharedHistoryController;
             [nc removeObserver:self name:@"setPercentage" object:nil];
             [nc removeObserver:self name:@"setCurrentProgress" object:nil];
             [nc removeObserver:self name:@"DownloadFinished" object:nil];
-            
+
             runDownloads=NO;
             [_mainWindow setDocumentEdited:NO];
-            
+
             //Growl Notification
             NSUInteger downloadsSuccessful=0, downloadsFailed=0;
             for (Programme *show in tempQueue)
@@ -1359,9 +1373,9 @@ NewProgrammeHistory           *sharedHistoryController;
                 NSLog(@"ERROR: Growl notification failed (nextDownload - complete): %@: %@", e.name, e.description);
                 [_logger addToLog:[NSString stringWithFormat:@"ERROR: Growl notification failed (nextDownload - complete): %@: %@", e.name, e.description]];
             }
-            
+
             [[SUUpdater sharedUpdater] checkForUpdatesInBackground];
-            
+
             if (downloadsFailed>0)
                 [_solutionsWindow makeKeyAndOrderFront:self];
             if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"AutoRetryFailed"] boolValue] && downloadsFailed>0)
@@ -1370,7 +1384,7 @@ NewProgrammeHistory           *sharedHistoryController;
                 _datePicker.dateValue = scheduledDate;
                 [self scheduleStart:self];
             }
-            
+
             return;
         }
     }
@@ -1422,7 +1436,7 @@ NewProgrammeHistory           *sharedHistoryController;
         show.added = programme.timeadded;
         show.tvNetwork = programme.tvNetwork;
         show.lastFound = [NSDate date];
-        
+
         //Check to make sure the programme isn't already in the queue before adding it.
         NSArray *queuedObjects = _pvrQueueController.arrangedObjects;
         BOOL add=YES;
@@ -1476,32 +1490,36 @@ NewProgrammeHistory           *sharedHistoryController;
             }
             NSString *cacheExpiryArgument = [[GetiPlayerArguments sharedController] cacheExpiryArgument:nil];
             NSString *typeArgument = [[GetiPlayerArguments sharedController] typeArgumentForCacheUpdate:NO andIncludeITV:YES];
-            
+
             NSMutableArray *autoRecordArgs = [[NSMutableArray alloc] initWithObjects:_getiPlayerPath,
                                               [GetiPlayerArguments sharedController].noWarningArg,@"--nopurge",
-                                              @"--listformat=<pid>: <type>, ~<name> - <episode>~, <channel>, <timeadded>, <pid>,<web>",
+                                              @"--listformat=<pid>|<type>|<name>|<episode>|<channel>|<timeadded>|<web>|<available>",
                                               cacheExpiryArgument,
                                               typeArgument,
                                               [GetiPlayerArguments sharedController].profileDirArg,
                                               @"--hide",
                                               [self escapeSpecialCharactersInString:series.showName],
                                               nil];
-            
+
             NSTask *autoRecordTask = [[NSTask alloc] init];
             NSPipe *autoRecordPipe = [[NSPipe alloc] init];
             NSMutableString *autoRecordData = [[NSMutableString alloc] initWithString:@""];
             NSFileHandle *readHandle = autoRecordPipe.fileHandleForReading;
             NSData *inData = nil;
-            
+
             autoRecordTask.launchPath = @"/usr/bin/perl";
             autoRecordTask.arguments = autoRecordArgs;
             autoRecordTask.standardOutput = autoRecordPipe;
             NSMutableDictionary *envVariableDictionary = [NSMutableDictionary dictionaryWithDictionary:autoRecordTask.environment];
             envVariableDictionary[@"HOME"] = (@"~").stringByExpandingTildeInPath;
             envVariableDictionary[@"PERL_UNICODE"] = @"AS";
+            NSString *perlPath = [[NSBundle mainBundle] resourcePath];
+            perlPath = [perlPath stringByAppendingPathComponent:@"perl5"];
+            envVariableDictionary[@"PERL5LIB"] = perlPath;
+            
             autoRecordTask.environment = envVariableDictionary;
             [autoRecordTask launch];
-            
+
             while ((inData = readHandle.availableData) && inData.length) {
                 NSString *tempData = [[NSString alloc] initWithData:inData encoding:NSUTF8StringEncoding];
                 [autoRecordData appendString:tempData];
@@ -1524,7 +1542,7 @@ NewProgrammeHistory           *sharedHistoryController;
             [self.startButton setEnabled:YES];
         }
         [[NSNotificationCenter defaultCenter] removeObserver:self name:@"NSThreadWillExitNotification" object:nil];
-        
+
         //If this is an update initiated by the scheduler, run the downloads.
         if (self.runScheduled && !self.scheduleTimer)
         {
@@ -1555,6 +1573,10 @@ NewProgrammeHistory           *sharedHistoryController;
 - (BOOL)processAutoRecordData:(NSString *)autoRecordData2 forSeries:(Series *)series2
 {
     BOOL oneFound=NO;
+    NSDateFormatter *dateFormatter = [[NSDateFormatter alloc] init];
+    dateFormatter.dateFormat = @"yyyy'-'MM'-'dd'T'HH':'mm':'ssZZZZZ";
+
+    NSArray *currentQueue = _queueController.arrangedObjects;
     NSArray *array = [autoRecordData2 componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
     for (NSString *string in array)
     {
@@ -1562,38 +1584,22 @@ NewProgrammeHistory           *sharedHistoryController;
             && ![string hasPrefix:@"reading"] )
         {
             @try {
-                NSScanner *myScanner = [NSScanner scannerWithString:string];
-                NSArray *currentQueue = _queueController.arrangedObjects;
-                NSString *temp_pid, *temp_showName, *temp_tvNetwork, *temp_type, *temp_realPID, *url;
-                NSInteger timeadded;
-                [myScanner scanUpToString:@":" intoString:&temp_pid];
-                [myScanner scanUpToCharactersFromSet:[NSCharacterSet alphanumericCharacterSet] intoString:NULL];
-                [myScanner scanUpToString:@", ~" intoString:&temp_type];
-                [myScanner scanString:@", ~" intoString:nil];
-                [myScanner scanUpToString:@"~," intoString:&temp_showName];
-                [myScanner scanUpToCharactersFromSet:[NSCharacterSet alphanumericCharacterSet] intoString:NULL];
-                [myScanner scanUpToString:@"," intoString:&temp_tvNetwork];
-                [myScanner scanString:@"," intoString:nil];
-                [myScanner scanInteger:&timeadded];
-                [myScanner scanUpToString:@", " intoString:nil];
-                [myScanner scanString:@", " intoString:nil];
-                [myScanner scanUpToString:@"," intoString:&temp_realPID];
-                [myScanner scanString:@"," intoString:nil];
-                [myScanner scanUpToString:@"kjkjkj" intoString:&url];
+                NSArray *matchElements = [string componentsSeparatedByString:@"|"];
                 
-                NSScanner *seriesEpisodeScanner = [NSScanner scannerWithString:temp_showName];
+                NSString *temp_pid, *temp_tvNetwork, *temp_type, *url, *temp_date, *temp_timeAdded;
                 NSString *series_Name, *episode_Name;
-                [seriesEpisodeScanner scanUpToString:@" - " intoString:&series_Name];
-                [seriesEpisodeScanner scanString:@"-" intoString:nil];
-                [seriesEpisodeScanner scanUpToString:@"kjkljfdg" intoString:&episode_Name];
-                if ([temp_showName hasSuffix:@" - -"])
-                {
-                    NSString *temp_showName2;
-                    NSScanner *dashScanner = [NSScanner scannerWithString:temp_showName];
-                    [dashScanner scanUpToString:@" - -" intoString:&temp_showName2];
-                    temp_showName = temp_showName2;
-                    temp_showName = [temp_showName stringByAppendingFormat:@" - %@", temp_showName2];
-                }
+
+                temp_pid = matchElements[0];
+                temp_type = matchElements[1];
+                series_Name = matchElements[2];
+                episode_Name = matchElements[3];
+                temp_tvNetwork = matchElements[4];
+                temp_timeAdded = matchElements[5];
+                url = matchElements[6];
+                temp_date = matchElements[7];
+
+                NSInteger timeadded = [temp_timeAdded integerValue];
+
                 if ((series2.added.integerValue > timeadded) &&
                     ([temp_tvNetwork isEqualToString:series2.tvNetwork] || [[series2.tvNetwork stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] isEqualToString:@"*"] || series2.tvNetwork.length == 0))
                 {
@@ -1603,15 +1609,27 @@ NewProgrammeHistory           *sharedHistoryController;
                     ([temp_tvNetwork isEqualToString:series2.tvNetwork] || [[series2.tvNetwork stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]] isEqualToString:@"*"] || series2.tvNetwork.length == 0))
                 {
                     @try {
+                        NSString *seriesAndEpisode = nil;
+                        if (series_Name.length > 0 && episode_Name.length > 0) {
+                            seriesAndEpisode = [NSString stringWithFormat:@"%@ - %@", series_Name ?: @"", episode_Name ?: @""];
+                        } else if (series_Name) {
+                            seriesAndEpisode = series_Name;
+                        } else {
+                            seriesAndEpisode = episode_Name;
+                        }
+                        
+                        if (seriesAndEpisode)
                         oneFound=YES;
-                        Programme *p = [[Programme alloc] initWithPid:temp_pid programmeName:temp_showName network:temp_tvNetwork logController:_logger];
-                        p.realPID = temp_realPID;
+                        Programme *p = [[Programme alloc] initWithPid:temp_pid programmeName:seriesAndEpisode network:temp_tvNetwork logController:_logger];
+                        p.realPID = temp_pid;
                         p.seriesName = series_Name;
                         p.episodeName = episode_Name;
                         p.url = url;
-                        if ([temp_type isEqualToString:@"radio"]) [p setValue:@YES forKey:@"radio"];
-                        [p setValue:@"Added by Series-Link" forKey:@"status"];
+                        if ([temp_type isEqualToString:@"radio"]) p.radio = @YES;
+                        p.status = @"Added by Series-Link";
                         p.addedByPVR = true;
+                        p.lastBroadcast = [dateFormatter dateFromString:temp_date];
+                        p.lastBroadcastString = [NSDateFormatter localizedStringFromDate:p.lastBroadcast dateStyle:NSDateFormatterMediumStyle timeStyle:NSDateFormatterNoStyle];
                         BOOL inQueue=NO;
                         for (Programme *show in currentQueue)  {
                             if ( [show.pid isEqualToString:p.pid])
@@ -1619,7 +1637,7 @@ NewProgrammeHistory           *sharedHistoryController;
                         }
                         if (!inQueue)
                         {
-                            if (runDownloads) [p setValue:@"Waiting..." forKey:@"status"];
+                            if (runDownloads) p.status = @"Waiting...";
                             [_queueController performSelectorOnMainThread:@selector(addObject:) withObject:p waitUntilDone:NO];
                         }
                     }
@@ -1690,10 +1708,10 @@ NewProgrammeHistory           *sharedHistoryController;
         } else if (series.tvNetwork.length == 0) {
             series.tvNetwork = @"*";
         }
-        
+
     }
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    
+
     NSString *folder = @"~/Library/Application Support/Get iPlayer Automator/";
     folder = folder.stringByExpandingTildeInPath;
     if ([fileManager fileExistsAtPath: folder] == NO)
@@ -1702,30 +1720,30 @@ NewProgrammeHistory           *sharedHistoryController;
     }
     NSString *filename = @"Queue.automatorqueue";
     NSString *filePath = [folder stringByAppendingPathComponent:filename];
-    
+
     NSMutableDictionary * rootObject;
     rootObject = [NSMutableDictionary dictionary];
-    
-    [rootObject setValue:tempQueue forKey:@"queue"];
-    [rootObject setValue:tempSeries forKey:@"serieslink"];
-    [rootObject setValue:_lastUpdate forKey:@"lastUpdate"];
+
+    rootObject[@"queue"] = tempQueue;
+    rootObject[@"serieslink"] = tempSeries;
+    rootObject[@"lastUpdate"] = _lastUpdate;
     [NSKeyedArchiver archiveRootObject: rootObject toFile: filePath];
-    
+
     filename = @"Formats.automatorqueue";
     filePath = [folder stringByAppendingPathComponent:filename];
-    
+
     rootObject = [NSMutableDictionary dictionary];
-    
-    [rootObject setValue:_tvFormatController.arrangedObjects forKey:@"tvFormats"];
-    [rootObject setValue:_radioFormatController.arrangedObjects forKey:@"radioFormats"];
+
+    rootObject[@"tvFormats"] = _tvFormatController.arrangedObjects;
+    rootObject[@"radioFormats"] = _radioFormatController.arrangedObjects;
     [NSKeyedArchiver archiveRootObject:rootObject toFile:filePath];
-    
+
     filename = @"ITVFormats.automator";
     filePath = [folder stringByAppendingPathComponent:filename];
     rootObject = [NSMutableDictionary dictionary];
-    [rootObject setValue:_itvFormatController.arrangedObjects forKey:@"itvFormats"];
+    rootObject[@"itvFormats"] = _itvFormatController.arrangedObjects;
     [NSKeyedArchiver archiveRootObject:rootObject toFile:filePath];
-    
+
     //Store Preferences in case of crash
     [[NSUserDefaults standardUserDefaults] synchronize];
 }
@@ -1753,7 +1771,7 @@ NewProgrammeHistory           *sharedHistoryController;
                             @"[", @"]", @"^", @"~", @"*", @"?", @":", @"\""];
     for (NSString *character in characters)
         string = [string stringByReplacingOccurrencesOfString:character withString:[NSString stringWithFormat:@"\\%@",character]];
-    
+
     return string;
 }
 
@@ -1762,11 +1780,11 @@ NewProgrammeHistory           *sharedHistoryController;
     @autoreleasepool {
         NSString *path = [[NSString alloc] initWithString:show.path];
         NSString *ext = path.pathExtension;
-        
+
         [_logger performSelectorOnMainThread:@selector(addToLog:) withObject:[NSString stringWithFormat:@"Adding %@ to iTunes",show.showName] waitUntilDone:NO];
-        
+
         iTunesApplication *iTunes = [SBApplication applicationWithBundleIdentifier:@"com.apple.iTunes"];
-        
+
         NSArray *fileToAdd = @[[NSURL fileURLWithPath:path]];
         if (!iTunes.running) [iTunes activate];
         @try
@@ -1787,58 +1805,58 @@ NewProgrammeHistory           *sharedHistoryController;
                         if (show.episode>0) track.episodeNumber = show.episode;
                     }
                     [track setUnplayed:YES];
-                    [show setValue:@"Complete & in iTunes" forKey:@"status"];
+                    show.status = @"Complete & in iTunes";
                 }
                 else if ([track exists] && ([ext isEqualToString:@"mp3"] || [ext isEqualToString:@"m4a"]))
                 {
                     [track setBookmarkable:YES];
                     [track setUnplayed:YES];
-                    [show setValue:@"Complete & in iTunes" forKey:@"status"];
+                    show.status = @"Complete & in iTunes";
                 }
                 else
                 {
                     [_logger performSelectorOnMainThread:@selector(addToLog:) withObject:@"iTunes did not accept file." waitUntilDone:YES];
                     [_logger performSelectorOnMainThread:@selector(addToLog:) withObject:@"Try dragging the file from the Finder into iTunes." waitUntilDone:YES];
-                    [show setValue:@"Complete: Not in iTunes" forKey:@"status"];
+                    show.status = @"Complete: Not in iTunes";
                 }
             }
             else
             {
                 NSString *message = [NSString stringWithFormat:@"Can't add %@ file to iTunes -- incompatible format.", ext];
                 [_logger performSelectorOnMainThread:@selector(addToLog:) withObject:message waitUntilDone:YES];
-                [show setValue:@"Download Complete" forKey:@"status"];
+                show.status = @"Download Complete";
             }
         }
         @catch (NSException *e)
         {
             NSString *message = [NSString stringWithFormat:@"Unable to add %@ to iTunes", show];
             [_logger performSelectorOnMainThread:@selector(addToLog:) withObject:message waitUntilDone:YES];
-            [show setValue:@"Complete: Not in iTunes" forKey:@"status"];
+            show.status = @"Complete: Not in iTunes";
         }
     }
 }
 - (void)cleanUpPath:(Programme *)show
 {
-    
+
     //Process Show Name into Parts
     NSString *originalShowName, *originalEpisodeName;
     NSScanner *nameScanner = [NSScanner scannerWithString:show.showName];
     [nameScanner scanUpToString:@" - " intoString:&originalShowName];
     [nameScanner scanString:@"-" intoString:nil];
     [nameScanner scanUpToString:@"Scan to End" intoString:&originalEpisodeName];
-    
-    
+
+
     //Replace :'s with -'s
     NSString *showName = [originalShowName stringByReplacingOccurrencesOfString:@":" withString:@" -"];
     NSString *episodeName = [originalEpisodeName stringByReplacingOccurrencesOfString:@":" withString:@" -"];
-    
+
     //Replace /'s with _'s
     showName = [showName stringByReplacingOccurrencesOfString:@"/" withString:@"-"];
     episodeName = [episodeName stringByReplacingOccurrencesOfString:@"/" withString:@"-"];
-    
+
     //Save Data to Programme for Later Use
-    [show setValue:showName forKey:@"seriesName"];
-    [show setValue:episodeName forKey:@"episodeName"];
+    show.seriesName = showName;
+    show.episodeName = episodeName;
 }
 
 - (void)seasonEpisodeInfo:(Programme *)show
@@ -1848,24 +1866,24 @@ NewProgrammeHistory           *sharedHistoryController;
     {
         NSString *episodeName = show.episodeName;
         NSString *seriesName = show.seriesName;
-        
+
         NSScanner *episodeScanner = [NSScanner scannerWithString:episodeName];
         NSScanner *seasonScanner = [NSScanner scannerWithString:seriesName];
-        
+
         [episodeScanner scanUpToString:@"Episode" intoString:nil];
         if ([episodeScanner scanString:@"Episode" intoString:nil])
         {
             [episodeScanner scanUpToCharactersFromSet:[NSCharacterSet decimalDigitCharacterSet] intoString:nil];
             [episodeScanner scanInteger:&episode];
         }
-        
+
         [seasonScanner scanUpToString:@"Series" intoString:nil];
         if ([seasonScanner scanString:@"Series" intoString:nil])
         {
             [seasonScanner scanUpToCharactersFromSet:[NSCharacterSet decimalDigitCharacterSet] intoString:nil];
             [seasonScanner scanInteger:&season];
         }
-        
+
         //Remove Series Number from Series Name
         //Showname is now Top Gear instead of Top Gear - Series 12
         NSString *show2;
@@ -1893,10 +1911,7 @@ NewProgrammeHistory           *sharedHistoryController;
     NSArray *urls = openPanel.URLs;
     [[NSUserDefaults standardUserDefaults] setValue:[urls[0] path] forKey:@"DownloadPath"];
 }
-- (IBAction)showFeedback:(id)sender
-{
-    [JRFeedbackController showFeedback];
-}
+
 - (IBAction)restoreDefaults:(id)sender
 {
     NSUserDefaults *sharedDefaults = [NSUserDefaults standardUserDefaults];
@@ -2031,10 +2046,10 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     NSDate *startTime = _scheduleTimer.fireDate;
     NSDate *currentTime = [NSDate date];
-    
+
     unsigned int unitFlags = NSHourCalendarUnit | NSMinuteCalendarUnit | NSDayCalendarUnit | NSSecondCalendarUnit;
     NSDateComponents *conversionInfo = [[NSCalendar currentCalendar] components:unitFlags fromDate:currentTime toDate:startTime options:0];
-    
+
     NSString *status = [NSString stringWithFormat:@"Time until Start (DD:HH:MM:SS): %02ld:%02ld:%02ld:%02ld",
                         (long)conversionInfo.day, (long)conversionInfo.hour,
                         (long)conversionInfo.minute,(long)conversionInfo.second];
@@ -2067,17 +2082,17 @@ NewProgrammeHistory           *sharedHistoryController;
                                                otherButton:nil
                                  informativeTextWithFormat:@"This will take a few minutes to complete - do NOT abandon"];
     NSInteger response = [downloadAlert runModal];
-    
+
     if (response == NSAlertAlternateReturn)
         [self forceITVUpdate1];
-    
+
 }
 
 - (void)forceITVUpdate1
-{    
+{
     _forceITVUpdateInProgress = YES;
     _forceITVUpdateMenuItem.enabled = NO;
-    
+
     [_pvrSearchField setEnabled:NO];
     [_stopButton setEnabled:NO];
     [_startButton setEnabled:NO];
@@ -2086,13 +2101,13 @@ NewProgrammeHistory           *sharedHistoryController;
     [_refreshCacheButton setEnabled:NO];
     [_forceCacheUpdateMenuItem setEnabled:NO];
     [_checkForCacheUpdateMenuItem setEnabled:NO];
-        
+
     [self.itvProgressIndicator startAnimation:self];
     self.itvProgressIndicator.doubleValue = 0.0;
     [self.itvProgressIndicator setHidden:false];
     [_itvProgressText setHidden:false];
     _updatingITVIndex=true;
-    
+
     [newITVListing forceITVUpdateWithLogger:_logger];
 
 }
@@ -2101,7 +2116,7 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     _forceITVUpdateInProgress = NO;
     _forceITVUpdateMenuItem.enabled = YES;
-    
+
     [self itvUpdateFinished];
 }
 
@@ -2119,28 +2134,28 @@ NewProgrammeHistory           *sharedHistoryController;
     NSArray *files = @[@"tv", @"radio", @"itv"];
     NSArray *types = @[@"BBC TV", @"BBC Radio", @"ITV"];
     NSMutableArray *active = [NSMutableArray arrayWithObjects:@false, @false, @false, nil];
-    
+
     if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"CacheBBC_TV"] boolValue])
         active[0]=@true;
 
     if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"CacheBBC_Radio"] boolValue])
         active[1]=@true;
-    
+
     if ([[[NSUserDefaults standardUserDefaults] valueForKey:@"CacheITV_TV"] boolValue])
         active[2]=@true;
-             
+
     NSString *filePath = @"~/Library/Application Support/Get iPlayer Automator";
     filePath= filePath.stringByExpandingTildeInPath;
-    
+
     for (int i = 0; i < types.count; i++ )
     {
         NSString *oldProgrammesFile = [filePath stringByAppendingFormat:@"/%@.gia", files[i]];
         NSString *newCacheFile = [filePath stringByAppendingFormat:@"/%@.cache", files[i]];
-        
+
         if ([active[i] boolValue])
             [self updateHistoryForType:types[i] andProgFile:oldProgrammesFile andCacheFile:newCacheFile];
     }
-    
+
     [sharedHistoryController flushHistoryToDisk];
 }
 
@@ -2150,41 +2165,41 @@ NewProgrammeHistory           *sharedHistoryController;
 
     NSFileManager *fileManager = [NSFileManager defaultManager];
     BOOL firstTimeBuild;
-    
+
     if ( [fileManager fileExistsAtPath:newCacheFile] && ![fileManager fileExistsAtPath:oldProgrammesFile] )
         firstTimeBuild = true;
     else
         firstTimeBuild = false;
-    
+
     [NSKeyedUnarchiver setClass:[ProgrammeHistoryObject class] forClassName:@"ProgrammeHistoryObject"];
     NSMutableArray *oldProgrammesArray = [NSKeyedUnarchiver unarchiveObjectWithFile:oldProgrammesFile];
-   
+
     if ( oldProgrammesArray == nil )
         oldProgrammesArray = [[NSMutableArray alloc]init];
 
     /* Load in todays shows cached by get_iplayer or getITVListings and create a dictionary of show names */
-    
+
     NSError *error;
     NSString *newCacheString = [NSString stringWithContentsOfFile:newCacheFile encoding:NSUTF8StringEncoding error:&error];
     NSArray  *newCacheArray  = [newCacheString componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
-    
+
     NSMutableSet *todayProgrammes = [[NSMutableSet alloc]init];
     NSString *entry;
     NSString *programmeName;
     NSString  *channel;
-    
+
     BOOL firstEntry = true;
-    
+
     int programmeNameLocation = 0;
     int channelLocation = 0;
-    
+
     for (entry in newCacheArray)
     {
         if (firstEntry )  {
             firstEntry = false;
             programmeNameLocation = [self findItemNumberFor:@"name" inString:entry];
             channelLocation = [self findItemNumberFor:@"channel" inString:entry];
-            
+
             if (programmeNameLocation == 0 || channelLocation == 0)
             {
                 NSLog(@"ERROR: Cannot update new programmes history from cache file: %@", newCacheFile);
@@ -2193,30 +2208,30 @@ NewProgrammeHistory           *sharedHistoryController;
             }
             continue;
         }
-        
+
         programmeName = [self getItemNumber:programmeNameLocation fromString:entry];
         channel = [self getItemNumber:channelLocation fromString:entry];
-        
+
         if ( programmeName.length == 0 || channel.length == 0)
             continue;
 
         ProgrammeHistoryObject *p = [[ProgrammeHistoryObject alloc] initWithSortKey:0 programmeName:programmeName dateFound:@"" tvChannel:channel networkName:networkName];
         [todayProgrammes addObject:p];
     }
-    
+
     /* Put back today's programmes for comparison on the next run */
-    
+
     NSArray *cfProgrammes = todayProgrammes.allObjects;
     [NSKeyedArchiver archiveRootObject:cfProgrammes toFile:oldProgrammesFile];
-    
+
     /* subtract bought forward from today to create new programmes list */
-    
+
     NSSet *oldProgrammeSet  = [NSSet setWithArray:oldProgrammesArray];
     [todayProgrammes minusSet:oldProgrammeSet];
     NSArray *newProgrammesArray = todayProgrammes.allObjects;
 
     /* and update history file with new programmes */
-    
+
     if ( !firstTimeBuild ) {
         for (ProgrammeHistoryObject *p in newProgrammesArray ) {
             [sharedHistoryController addWithName:p.programmeName tvChannel:p.tvChannel networkName:networkName];
@@ -2228,10 +2243,10 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     NSString *theItem;
     NSScanner *scanner = [NSScanner scannerWithString:string];
-    
+
     scanner = [self skip:scanner andDelimiter:@"|" andTimes:itemLocation];
     [scanner scanUpToString:@"|" intoString:&theItem];
-    
+
     return theItem;
 }
 
@@ -2239,12 +2254,12 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     NSString *theItem;
     NSScanner *scanner = [NSScanner scannerWithString:string];
-    
+
     for (int itemNumber = 1; [scanner scanUpToString:@"|" intoString:&theItem]; itemNumber++ )
     {
         if ( [theItem isEqualToString:key] )
             return itemNumber;
-        
+
         [scanner scanString:@"|"  intoString:nil];
     }
     return false;
@@ -2254,14 +2269,14 @@ NewProgrammeHistory           *sharedHistoryController;
 {
     if (--times < 0)
         return s;
-    
+
     do
     {
         [s scanUpToString:d intoString:nil];
         [s scanString:d intoString:nil];
-        
+
     } while (--times > 0);
-    
+
     return s;
 }
 
