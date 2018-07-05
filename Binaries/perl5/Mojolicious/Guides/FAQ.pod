@@ -81,9 +81,11 @@ for it, this is currently 5.10.1.
 
 =head2 How well is Windows supported by Mojolicious?
 
-Windows is fully supported by L<Mojolicious>, some of the more advanced
-features, such as L<subprocesses|Mojo::IOLoop/"subprocess"> and the
-L<Hypnotoad|Mojo::Server::Hypnotoad> web server, will however require the use of
+Windows is not officially supported by L<Mojolicious>, even though we try to
+keep the distribution installable. There may be serious security and/or
+reliability issues. Some of the more advanced features, such as
+L<subprocesses|Mojo::IOLoop/"subprocess"> and the
+L<Hypnotoad|Mojo::Server::Hypnotoad> web server, will also require the use of
 the L<Windows Subsystem for Linux|https://msdn.microsoft.com/commandline/wsl/>.
 
 =head2 Do I need to clean my environment before testing Mojolicious?
@@ -130,12 +132,23 @@ Hypnotoad.
 
   $ ./myapp.pl prefork -m production -l http://*:8080 -w 10
 
+=head2 What does the error "...certificate verify failed" mean?
+
+There are many variations of this error, but most of them mean that TLS
+certificate verification in L<Mojo::UserAgent> failed. This usually happens for
+two reasons. The most common one is that the peer certificate is simply invalid.
+If that's the case and you are certain that no MITM attack is being attempted,
+you can use the attribute L<Mojo::UserAgent/"insecure"> or C<MOJO_INSECURE>
+environment variable to disable certificate verification. And if that's not the
+case you might be missing the L<Mozilla::CA> module, which is often required by
+L<IO::Socket::SSL> to be able to verify certificates.
+
 =head2 What does the error "Maximum message size exceeded" mean?
 
 To protect your applications from excessively large requests and responses, our
 HTTP parser has a cap after which it will automatically stop accepting new
-data, and in most cases force the connection to be closed. The limit is 16MB for
-requests, and 2GB for responses by default. You can use the attributes
+data, and in most cases force the connection to be closed. The limit is 16MiB
+for requests, and 2GiB for responses by default. You can use the attributes
 L<Mojolicious/"max_request_size"> and L<Mojo::UserAgent/"max_response_size"> to
 change these values.
 
@@ -143,7 +156,7 @@ change these values.
 
 This is a very similar protection mechanism to the one described in the
 previous answer, but a little more specific. It limits the maximum length of
-the start-line for HTTP requests and responses. The limit is 8KB by default,
+the start-line for HTTP requests and responses. The limit is 8KiB by default,
 you can use the attribute L<Mojo::Message/"max_line_size"> or
 C<MOJO_MAX_LINE_SIZE> environment variable to change this value.
 
@@ -151,7 +164,7 @@ C<MOJO_MAX_LINE_SIZE> environment variable to change this value.
 
 Almost the same as the previous answer, but this protection mechanism limits
 the number and maximum length of HTTP request and response headers. The limits
-are 100 headers with 8KB each by default, you can use the attributes
+are 100 headers with 8KiB each by default, you can use the attributes
 L<Mojo::Headers/"max_lines"> and L<Mojo::Headers/"max_line_size"> or the
 C<MOJO_MAX_LINES> and C<MOJO_MAX_LINE_SIZE> environment variables to change
 these values.
@@ -160,7 +173,7 @@ these values.
 
 This protection mechanism limits how much content the HTTP parser is allowed to
 buffer when parsing chunked, compressed and multipart messages. The limit is
-around 256KB by default, you can use the attribute
+around 256KiB by default, you can use the attribute
 L<Mojo::Content/"max_buffer_size"> or C<MOJO_MAX_BUFFER_SIZE> environment
 variable to change this value.
 
@@ -207,7 +220,7 @@ be closed immediately.
   # The variable $ua goes out of scope and gets destroyed too early
   Mojo::IOLoop->timer(5 => sub {
     my $ua = Mojo::UserAgent->new;
-    $ua->get('http://mojolicious.org' => sub {
+    $ua->get('https://mojolicious.org' => sub {
       my ($ua, $tx) = @_;
       say $tx->result->dom->at('title')->text;
     });

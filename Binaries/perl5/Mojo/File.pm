@@ -54,6 +54,9 @@ sub list_tree {
   # This may break in the future, but is worth it for performance
   local $File::Find::skip_pattern = qr/^\./ unless $options->{hidden};
 
+  # The File::Find documentation lies, this is needed for CIFS
+  local $File::Find::dont_use_nlink = 1 if $options->{dont_use_nlink};
+
   my %all;
   my $wanted = {wanted => sub { $all{$File::Find::name}++ }, no_chdir => 1};
   $wanted->{postprocess} = sub { delete $all{$File::Find::dir} }
@@ -320,6 +323,12 @@ These options are currently available:
 
 Include directories.
 
+=item dont_use_nlink
+
+  dont_use_nlink => 1
+
+Force L<File::Find> to always stat directories.
+
 =item hidden
 
   hidden => 1
@@ -480,6 +489,6 @@ Alias for L</"to_string">.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

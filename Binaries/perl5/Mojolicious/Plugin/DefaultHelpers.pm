@@ -1,11 +1,13 @@
 package Mojolicious::Plugin::DefaultHelpers;
 use Mojo::Base 'Mojolicious::Plugin';
 
+use Mojo::Asset::File;
 use Mojo::ByteStream;
 use Mojo::Collection;
 use Mojo::Exception;
 use Mojo::IOLoop;
-use Mojo::Util qw(dumper hmac_sha1_sum steady_time);
+use Mojo::Util qw(deprecated dumper hmac_sha1_sum steady_time);
+use Time::HiRes qw(gettimeofday tv_interval);
 use Scalar::Util 'blessed';
 
 sub register {
@@ -30,16 +32,32 @@ sub register {
   $app->helper(content_for  => sub { _content(1, 0, @_) });
   $app->helper(content_with => sub { _content(0, 1, @_) });
 
+  # DEPRECATED!
+  $app->helper(
+    delay => sub {
+      deprecated 'delay helper is DEPRECATED';
+      my $c  = shift;
+      my $tx = $c->render_later->tx;
+      Mojo::IOLoop->delay(@_)
+        ->catch(sub { $c->helpers->reply->exception(pop) and undef $tx })->wait;
+    }
+  );
+
   $app->helper($_ => $self->can("_$_"))
-    for qw(csrf_token current_route delay inactivity_timeout is_fresh url_with);
+    for qw(csrf_token current_route inactivity_timeout is_fresh url_with);
 
   $app->helper(dumper => sub { shift; dumper @_ });
   $app->helper(include => sub { shift->render_to_string(@_) });
 
-  $app->helper("reply.$_" => $self->can("_$_")) for qw(asset static);
+  $app->helper("reply.$_" => $self->can("_$_")) for qw(asset file static);
 
   $app->helper('reply.exception' => sub { _development('exception', @_) });
   $app->helper('reply.not_found' => sub { _development('not_found', @_) });
+
+  $app->helper('timing.begin'         => \&_timing_begin);
+  $app->helper('timing.elapsed'       => \&_timing_elapsed);
+  $app->helper('timing.rps'           => \&_timing_rps);
+  $app->helper('timing.server_timing' => \&_timing_server_timing);
 
   $app->helper(ua => sub { shift->app->ua });
 }
@@ -77,13 +95,6 @@ sub _current_route {
   return @_ ? $route->name eq shift : $route->name;
 }
 
-sub _delay {
-  my $c     = shift;
-  my $tx    = $c->render_later->tx;
-  my $delay = Mojo::IOLoop->delay(@_);
-  $delay->catch(sub { $c->helpers->reply->exception(pop) and undef $tx })->wait;
-}
-
 sub _development {
   my ($page, $c, $e) = @_;
 
@@ -93,17 +104,15 @@ sub _development {
 
   # Filtered stash snapshot
   my $stash = $c->stash;
-  my %snapshot = map { $_ => $stash->{$_} }
+  %{$stash->{snapshot} = {}} = map { $_ => $stash->{$_} }
     grep { !/^mojo\./ and defined $stash->{$_} } keys %$stash;
+  $stash->{exception} = $page eq 'exception' ? $e : undef;
 
   # Render with fallbacks
-  my $mode     = $app->mode;
-  my $renderer = $app->renderer;
-  my $options  = {
-    exception => $page eq 'exception' ? $e : undef,
-    format => $stash->{format} || $renderer->default_format,
+  my $mode    = $app->mode;
+  my $options = {
+    format   => $stash->{format} || $app->renderer->default_format,
     handler  => undef,
-    snapshot => \%snapshot,
     status   => $page eq 'exception' ? 500 : 404,
     template => "$page.$mode"
   };
@@ -126,10 +135,12 @@ sub _fallbacks {
 
   # Inline template
   my $stash = $c->stash;
-  return undef unless $stash->{format} eq 'html';
+  return undef unless $options->{format} eq 'html';
   delete @$stash{qw(extends layout)};
   return $c->render_maybe($bundled, %$options, handler => 'ep');
 }
+
+sub _file { _asset(shift, Mojo::Asset::File->new(path => shift)) }
 
 sub _inactivity_timeout {
   my ($c, $timeout) = @_;
@@ -148,6 +159,24 @@ sub _static {
   return !!$c->rendered if $c->app->static->serve($c, $file);
   $c->app->log->debug(qq{Static file "$file" not found});
   return !$c->helpers->reply->not_found;
+}
+
+sub _timing_begin { shift->stash->{'mojo.timing'}{shift()} = [gettimeofday] }
+
+sub _timing_elapsed {
+  my ($c, $name) = @_;
+  return undef unless my $started = $c->stash->{'mojo.timing'}{$name};
+  return tv_interval($started, [gettimeofday()]);
+}
+
+sub _timing_rps { $_[1] == 0 ? undef : sprintf '%.3f', 1 / $_[1] }
+
+sub _timing_server_timing {
+  my ($c, $metric, $desc, $dur) = @_;
+  my $value = $metric;
+  $value .= qq{;desc="$desc"} if defined $desc;
+  $value .= ";dur=$dur"       if defined $dur;
+  $c->res->headers->append('Server-Timing' => $value);
 }
 
 sub _url_with {
@@ -191,10 +220,10 @@ L<Mojolicious::Plugin::DefaultHelpers> implements the following helpers.
   my $formats = $c->accepts;
   my $format  = $c->accepts('html', 'json', 'txt');
 
-Select best possible representation for resource from C<Accept> request header,
-C<format> stash value or C<format> C<GET>/C<POST> parameter with
-L<Mojolicious::Renderer/"accepts">, defaults to returning the first extension
-if no preference could be detected.
+Select best possible representation for resource from C<format> C<GET>/C<POST>
+parameter, C<format> stash value or C<Accept> request header with
+L<Mojolicious::Renderer/"accepts">, defaults to returning the first extension if
+no preference could be detected.
 
   # Check if JSON is acceptable
   $c->render(json => {hello => 'world'}) if $c->accepts('json');
@@ -231,7 +260,7 @@ Turn list into a L<Mojo::Collection> object.
 
   %= config 'something'
 
-Alias for L<Mojo/"config">.
+Alias for L<Mojolicious/"config">.
 
 =head2 content
 
@@ -298,35 +327,6 @@ Get CSRF token from L</"session">, and generate one if none exists.
   %= current_route
 
 Check or get name of current route.
-
-=head2 delay
-
-  $c->delay(sub {...}, sub {...});
-
-Disable automatic rendering and use L<Mojo::IOLoop/"delay"> to manage callbacks
-and control the flow of events, which can help you avoid deep nested closures
-that often result from continuation-passing style. Also keeps a reference to
-L<Mojolicious::Controller/"tx"> in case the underlying connection gets closed
-early, and calls L</"reply-E<gt>exception"> if an exception gets thrown in one
-of the steps, breaking the chain.
-
-  # Longer version
-  $c->render_later;
-  my $tx    = $c->tx;
-  my $delay = Mojo::IOLoop->delay(sub {...}, sub {...});
-  $delay->catch(sub { $c->reply->exception(pop) and undef $tx })->wait;
-
-  # Non-blocking request
-  $c->delay(
-    sub {
-      my $delay = shift;
-      $c->ua->get('http://mojolicious.org' => $delay->begin);
-    },
-    sub {
-      my ($delay, $tx) = @_;
-      $c->render(json => {title => $tx->result->dom->at('title')->text});
-    }
-  );
 
 =head2 dumper
 
@@ -425,6 +425,23 @@ C<exception.$format.*> and set the response status code to C<500>. Also sets
 the stash values C<exception> to a L<Mojo::Exception> object and C<snapshot> to
 a copy of the L</"stash"> for use in the templates.
 
+=head2 reply->file
+
+  $c->reply->file('/etc/passwd');
+
+Reply with a static file from an absolute path anywhere on the file system using
+L<Mojolicious/"static">.
+
+  # Longer version
+  $c->reply->asset(Mojo::Asset::File->new(path => '/etc/passwd'));
+
+  # Serve file from an absolute path with a custom content type
+  $c->res->headers->content_type('application/myapp');
+  $c->reply->file('/home/sri/foo.txt');
+
+  # Serve file from a secret application directory
+  $c->reply->file($c->app->home->child('secret', 'file.txt'));
+
 =head2 reply->not_found
 
   $c = $c->reply->not_found;
@@ -444,7 +461,7 @@ C<public> directories or C<DATA> sections of your application. Note that this
 helper uses a relative path, but does not protect from traversing to parent
 directories.
 
-  # Serve file with a custom content type
+  # Serve file from a relative path with a custom content type
   $c->res->headers->content_type('application/myapp');
   $c->reply->static('foo.txt');
 
@@ -463,6 +480,68 @@ Alias for L<Mojolicious::Controller/"stash">.
 
   %= stash('name') // 'Somebody'
 
+=head2 timing->begin
+
+  $c->timing->begin('foo');
+
+Create named timestamp for L<"timing-E<gt>elapsed">. Note that this helper is
+EXPERIMENTAL and might change without warning!
+
+=head2 timing->elapsed
+
+  my $elapsed = $c->timing->elapsed('foo');
+
+Return fractional amount of time in seconds since named timstamp has been
+created with L</"timing-E<gt>begin"> or C<undef> if no such timestamp exists.
+Note that this helper is EXPERIMENTAL and might change without warning!
+
+  # Log timing information
+  $c->timing->begin('database_stuff');
+  ...
+  my $elapsed = $c->timing->elapsed('database_stuff');
+  $c->app->log->debug("Database stuff took $elapsed seconds");
+
+=head2 timing->rps
+
+  my $rps = $c->timing->rps('0.001');
+
+Return fractional number of requests that could be performed in one second if
+every singe one took the given amount of time in seconds or C<undef> if the
+number is too low. Note that this helper is EXPERIMENTAL and might change
+without warning!
+
+  # Log more timing information
+  $c->timing->begin('web_stuff');
+  ...
+  my $elapsed = $c->timing->elapsed('web_stuff');
+  my $rps     = $c->timing->rps($elapsed);
+  $c->app->log->debug("Web stuff took $elapsed seconds ($rps per second)");
+
+=head2 timing->server_timing
+
+  $c->timing->server_timing('metric');
+  $c->timing->server_timing('metric', 'Some Description');
+  $c->timing->server_timing('metric', 'Some Description', '0.001');
+
+Create C<Server-Timing> header with optional description and duration. Note that
+this helper is EXPERIMENTAL and might change without warning!
+
+  # "Server-Timing: miss"
+  $c->timing->server_timing('miss');
+
+  # "Server-Timing: dc;desc=atl"
+  $c->timing->server_timing('dc', 'atl');
+
+  # "Server-Timing: db;desc=Database;dur=0.0001"
+  $c->timing->begin('database_stuff');
+  ...
+  my $elapsed = $c->timing->elapsed('database_stuff');
+  $c->timing->server_timing('db', 'Database', $elapsed);
+
+  # "Server-Timing: miss, dc;desc=atl"
+  $c->timing->server_timing('miss');
+  $c->timing->server_timing('dc', 'atl');
+
 =head2 title
 
   %= title
@@ -476,7 +555,7 @@ the L</"stash">.
 
   %= ua->get('mojolicious.org')->result->dom->at('title')->text
 
-Alias for L<Mojo/"ua">.
+Alias for L<Mojolicious/"ua">.
 
 =head2 url_for
 
@@ -514,6 +593,6 @@ Register helpers in L<Mojolicious> application.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

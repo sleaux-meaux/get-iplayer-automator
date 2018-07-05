@@ -15,9 +15,9 @@ sub run {
     'b|backlog=i'            => sub { $daemon->backlog($_[1]) },
     'c|clients=i'            => sub { $daemon->max_clients($_[1]) },
     'i|inactivity-timeout=i' => sub { $daemon->inactivity_timeout($_[1]) },
-    'l|listen=s'   => \my @listen,
-    'p|proxy'      => sub { $daemon->reverse_proxy(1) },
-    'r|requests=i' => sub { $daemon->max_requests($_[1]) };
+    'l|listen=s'             => \my @listen,
+    'p|proxy'                => sub { $daemon->reverse_proxy(1) },
+    'r|requests=i'           => sub { $daemon->max_requests($_[1]) };
 
   $daemon->listen(\@listen) if @listen;
   $daemon->run;
@@ -107,6 +107,6 @@ Run this command.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

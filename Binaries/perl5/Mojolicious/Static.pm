@@ -6,8 +6,8 @@ use Mojo::Asset::Memory;
 use Mojo::Date;
 use Mojo::File 'path';
 use Mojo::Home;
-use Mojo::Loader 'data_section';
-use Mojo::Util 'md5_sum';
+use Mojo::Loader qw(data_section file_is_binary);
+use Mojo::Util qw(encode md5_sum);
 
 # Bundled files
 my $PUBLIC = Mojo::Home->new(Mojo::Home->new->mojo_lib_dir)
@@ -34,7 +34,8 @@ sub dispatch {
   return undef unless my @parts = @{$path->canonicalize->parts};
 
   # Serve static file and prevent path traversal
-  return undef if $parts[0] eq '..' || !$self->serve($c, join('/', @parts));
+  my $canon_path = join '/', @parts;
+  return undef if $canon_path =~ /^\.\.\/|\\/ || !$self->serve($c, $canon_path);
   $stash->{'mojo.static'} = 1;
   return !!$c->rendered;
 }
@@ -43,9 +44,10 @@ sub file {
   my ($self, $rel) = @_;
 
   # Search all paths
+  my @parts = split '/', $rel;
   for my $path (@{$self->paths}) {
-    my $asset = $self->_get_file(path($path, split('/', $rel))->to_string);
-    return $asset if $asset;
+    next unless my $asset = _get_file(path($path, @parts)->to_string);
+    return $asset;
   }
 
   # Search DATA
@@ -53,7 +55,7 @@ sub file {
 
   # Search extra files
   my $extra = $self->extra;
-  return exists $extra->{$rel} ? $self->_get_file($extra->{$rel}) : undef;
+  return exists $extra->{$rel} ? _get_file($extra->{$rel}) : undef;
 }
 
 sub is_fresh {
@@ -136,13 +138,14 @@ sub _get_data_file {
   $self->warmup unless $self->{index};
 
   # Find file
-  return undef
-    unless defined(my $data = data_section($self->{index}{$rel}, $rel));
-  return Mojo::Asset::Memory->new->add_chunk($data);
+  my @args = ($self->{index}{$rel}, $rel);
+  return undef unless defined(my $data = data_section(@args));
+  return Mojo::Asset::Memory->new->add_chunk(
+    file_is_binary(@args) ? $data : encode 'UTF-8', $data);
 }
 
 sub _get_file {
-  my ($self, $path) = @_;
+  my $path = shift;
   no warnings 'newline';
   return -f $path && -r _ ? Mojo::Asset::File->new(path => $path) : undef;
 }
@@ -291,6 +294,6 @@ Prepare static files from L</"classes"> for future use.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

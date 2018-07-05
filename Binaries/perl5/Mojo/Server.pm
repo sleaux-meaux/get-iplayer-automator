@@ -55,7 +55,7 @@ sub load_app {
       "package Mojo::Server::Sandbox::@{[md5_sum $path]}; require \$path";
     die qq{Can't load application from file "$path": $@} if $@;
     die qq{File "$path" did not return an application object.\n}
-      unless blessed $app && $app->isa('Mojo');
+      unless blessed $app && $app->can('handler');
     $self->app($app);
   };
   FindBin->again;
@@ -115,7 +115,7 @@ following new ones.
 
 Emitted when a request is ready and needs to be handled.
 
-  $server->unsubscribe('request')->on(request => sub {
+  $server->on(request => sub {
     my ($server, $tx) = @_;
     $tx->res->code(200);
     $tx->res->headers->content_type('text/plain');
@@ -192,6 +192,6 @@ Run server. Meant to be overloaded in a subclass.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

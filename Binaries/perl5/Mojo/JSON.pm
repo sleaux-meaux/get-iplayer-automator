@@ -251,7 +251,8 @@ sub _encode_value {
   # Number
   no warnings 'numeric';
   return $value
-    if length((my $dummy = '') & $value)
+    if !utf8::is_utf8($value)
+    && length((my $dummy = '') & $value)
     && 0 + $value eq $value
     && $value * 0 == 0;
 
@@ -293,7 +294,7 @@ Mojo::JSON - Minimalistic JSON
 =head1 DESCRIPTION
 
 L<Mojo::JSON> is a minimalistic and possibly the fastest pure-Perl
-implementation of L<RFC 7159|http://tools.ietf.org/html/rfc7159>.
+implementation of L<RFC 8259|http://tools.ietf.org/html/rfc8259>.
 
 It supports normal Perl data types like scalar, array reference, hash reference
 and will try to call the C<TO_JSON> method on blessed references, or stringify
@@ -377,6 +378,6 @@ True value, used because Perl has no native equivalent.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

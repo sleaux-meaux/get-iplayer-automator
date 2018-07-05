@@ -10,7 +10,7 @@ use Mojo::Util 'steady_time';
 use Scalar::Util 'weaken';
 
 has prefork => sub { Mojo::Server::Prefork->new(listen => ['http://*:8080']) };
-has upgrade_timeout => 60;
+has upgrade_timeout => 180;
 
 sub configure {
   my ($self, $name) = @_;
@@ -66,11 +66,11 @@ sub run {
   $self->_hot_deploy unless $ENV{HYPNOTOAD_PID};
 
   # Daemonize as early as possible (but not for restarts)
+  local $SIG{USR2} = sub { $self->{upgrade} ||= steady_time };
   $prefork->start;
   $prefork->daemonize if !$ENV{HYPNOTOAD_FOREGROUND} && $ENV{HYPNOTOAD_REV} < 3;
 
   # Start accepting connections
-  local $SIG{USR2} = sub { $self->{upgrade} ||= steady_time };
   $prefork->cleanup(1)->run;
 }
 
@@ -184,7 +184,7 @@ file with it, and send a L</"USR2"> signal to the already running server.
 For better scalability (epoll, kqueue) and to provide non-blocking name
 resolution, SOCKS5 as well as TLS support, the optional modules L<EV> (4.0+),
 L<Net::DNS::Native> (0.15+), L<IO::Socket::Socks> (0.64+) and
-L<IO::Socket::SSL> (1.94+) will be used automatically if possible. Individual
+L<IO::Socket::SSL> (2.009+) will be used automatically if possible. Individual
 features can also be disabled with the C<MOJO_NO_NNR>, C<MOJO_NO_SOCKS> and
 C<MOJO_NO_TLS> environment variables.
 
@@ -352,7 +352,7 @@ drastically reducing the performance cost of worker restarts.
   upgrade_timeout => 45
 
 Maximum amount of time in seconds a zero downtime software upgrade may take
-before getting canceled, defaults to C<60>.
+before getting canceled, defaults to C<180>.
 
 =head2 workers
 
@@ -383,7 +383,7 @@ L<Mojo::Server::Prefork> object this server manages.
   $hypnotoad  = $hypnotoad->upgrade_timeout(15);
 
 Maximum amount of time in seconds a zero downtime software upgrade may take
-before getting canceled, defaults to C<60>.
+before getting canceled, defaults to C<180>.
 
 =head1 METHODS
 
@@ -404,6 +404,6 @@ Run server for application and wait for L</"MANAGER SIGNALS">.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

@@ -26,11 +26,10 @@ sub accepts {
   my ($self, $c) = (shift, shift);
 
   # List representations
-  my $req = $c->req;
-  my @exts = @{$c->app->types->detect($req->headers->accept, $req->is_xhr)};
-  if (!@exts && (my $format = $c->stash->{format} || $req->param('format'))) {
-    push @exts, $format;
-  }
+  my $req  = $c->req;
+  my $fmt  = $req->param('format') || $c->stash->{format};
+  my @exts = $fmt ? ($fmt) : ();
+  push @exts, @{$c->app->types->detect($req->headers->accept)};
   return \@exts unless @_;
 
   # Find best representation
@@ -74,18 +73,7 @@ sub get_helper {
 sub render {
   my ($self, $c, $args) = @_;
 
-  # Localize "extends" and "layout" to allow argument overrides
-  my $stash = $c->stash;
-  local $stash->{layout}  = $stash->{layout}  if exists $stash->{layout};
-  local $stash->{extends} = $stash->{extends} if exists $stash->{extends};
-
-  # Rendering to string
-  local @{$stash}{keys %$args} if my $string = delete $args->{'mojo.string'};
-  delete @{$stash}{qw(layout extends)} if $string;
-
-  # All other arguments just become part of the stash
-  @$stash{keys %$args} = values %$args;
-
+  my $stash   = $c->stash;
   my $options = {
     encoding => $self->encoding,
     handler  => $stash->{handler},
@@ -121,8 +109,8 @@ sub render {
     $content->{content} //= $output if $output =~ /\S/;
   }
 
-  return $string ? $output : _maybe($options->{encoding}, $output),
-    $options->{format};
+  return $output if $args->{'mojo.string'};
+  return _maybe($options->{encoding}, $output), $options->{format};
 }
 
 sub template_for {
@@ -273,7 +261,8 @@ application startup.
   $renderer   = $renderer->default_format('html');
 
 The default format to render if C<format> is not set in the stash, defaults to
-C<html>.
+C<html>. Note that changing the default away from C<html> is not recommended, as
+it has the potential to break, for example, plugins with bundled templates.
 
 =head2 default_handler
 
@@ -330,12 +319,9 @@ the following new ones.
   my $best = $renderer->accepts(Mojolicious::Controller->new, 'html', 'json');
 
 Select best possible representation for L<Mojolicious::Controller> object from
-C<Accept> request header, C<format> stash value or C<format> C<GET>/C<POST>
-parameter, defaults to returning the first extension if no preference could be
-detected. Since browsers often don't really know what they actually want,
-unspecific C<Accept> request headers with more than one MIME type will be
-ignored, unless the C<X-Requested-With> header is set to the value
-C<XMLHttpRequest>.
+C<format> C<GET>/C<POST> parameter, C<format> stash value, or C<Accept> request
+header, defaults to returning the first extension if no preference could be
+detected.
 
 =head2 add_handler
 
@@ -440,6 +426,6 @@ Prepare templates from L</"classes"> for future use.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

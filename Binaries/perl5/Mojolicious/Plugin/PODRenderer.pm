@@ -26,7 +26,7 @@ sub register {
 
   # Perldoc browser
   return undef if $conf->{no_perldoc};
-  my $defaults = {module => 'Mojolicious/Guides', format => 'html'};
+  my $defaults = {module => 'Mojolicious/Guides'};
   return $app->routes->any(
     '/perldoc/:module' => $defaults => [module => qr/[^.]+/] => \&_perldoc);
 }
@@ -47,8 +47,8 @@ sub _html {
 
   # Rewrite code blocks for syntax highlighting and correct indentation
   for my $e ($dom->find('pre > code')->each) {
-    my $str = $e->content;
-    next if $str =~ /^\s*(?:\$|Usage:)\s+/m || $str !~ /[\$\@\%]\w|-&gt;\w/m;
+    next if (my $str = $e->content) =~ /^\s*(?:\$|Usage:)\s+/m;
+    next unless $str =~ /[\$\@\%]\w|-&gt;\w|^use\s+\w/m;
     my $attrs = $e->attr;
     my $class = $attrs->{class};
     $attrs->{class} = defined $class ? "$class prettyprint" : 'prettyprint';
@@ -80,10 +80,10 @@ sub _perldoc {
 
   # Find module or redirect to CPAN
   my $module = join '::', split('/', $c->param('module'));
+  $c->stash(cpan => "https://metacpan.org/pod/$module");
   my $path
     = Pod::Simple::Search->new->find($module, map { $_, "$_/pods" } @INC);
-  return $c->redirect_to("https://metacpan.org/pod/$module")
-    unless $path && -r $path;
+  return $c->redirect_to($c->stash('cpan')) unless $path && -r $path;
 
   my $src = path($path)->slurp;
   $c->respond_to(txt => {data => $src}, html => sub { _html($c, $src) });
@@ -192,6 +192,6 @@ Register renderer and helper in L<Mojolicious> application.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

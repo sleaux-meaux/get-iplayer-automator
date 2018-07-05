@@ -104,7 +104,7 @@ sub parse {
 
   # Relaxed parsing
   my $headers = $self->headers;
-  my $len = $headers->content_length // '';
+  my $len     = $headers->content_length // '';
   if ($self->auto_relax && !length $len) {
     my $connection = lc($headers->connection // '');
     $self->relaxed(1)
@@ -342,7 +342,7 @@ Emitted once all data has been written.
 
 Emitted when a new chunk of content arrives.
 
-  $content->unsubscribe('read')->on(read => sub {
+  $content->on(read => sub {
     my ($content, $bytes) = @_;
     say "Streaming: $bytes";
   });
@@ -385,7 +385,7 @@ Content headers, defaults to a L<Mojo::Headers> object.
   $content = $content->max_buffer_size(1024);
 
 Maximum size in bytes of buffer for content parser, defaults to the value of
-the C<MOJO_MAX_BUFFER_SIZE> environment variable or C<262144> (256KB).
+the C<MOJO_MAX_BUFFER_SIZE> environment variable or C<262144> (256KiB).
 
 =head2 max_leftover_size
 
@@ -394,7 +394,7 @@ the C<MOJO_MAX_BUFFER_SIZE> environment variable or C<262144> (256KB).
 
 Maximum size in bytes of buffer for pipelined HTTP requests, defaults to the
 value of the C<MOJO_MAX_LEFTOVER_SIZE> environment variable or C<262144>
-(256KB).
+(256KiB).
 
 =head2 relaxed
 
@@ -594,6 +594,6 @@ time to end the stream.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

@@ -27,6 +27,7 @@ sub add_child {
   my ($self, $route) = @_;
   Scalar::Util::weaken $route->remove->parent($self)->{parent};
   push @{$self->children}, $route;
+  $route->pattern->types($self->root->types);
   return $self;
 }
 
@@ -667,6 +668,6 @@ shortcuts provided by L</"root"> on L<Mojolicious::Routes::Route> objects.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

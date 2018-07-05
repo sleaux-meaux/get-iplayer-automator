@@ -155,7 +155,7 @@ sub _spawn {
   # Clean worker environment
   $SIG{$_} = 'DEFAULT' for qw(CHLD INT TERM TTIN TTOU);
   $SIG{QUIT} = sub { $loop->stop_gracefully };
-  $loop->on(finish => sub { $self->max_requests(1) });
+  $loop->on(finish => sub { $self->max_requests(1)->close_connections });
   delete $self->{reader};
   srand;
 
@@ -315,7 +315,7 @@ Emitted when a heartbeat message has been received from a worker.
     ...
   });
 
-Emitted when a child process dies.
+Emitted when a child process exited.
 
   $prefork->on(reap => sub {
     my ($prefork, $pid) = @_;
@@ -465,6 +465,6 @@ Run server and wait for L</"MANAGER SIGNALS">.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

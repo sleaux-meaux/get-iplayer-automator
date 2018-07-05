@@ -209,11 +209,9 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 
 =over 2
 
-=item * L<Mojo::Base>
-
-=over 2
-
 =item * L<Mojo>
+
+=item * L<Mojo::Base>
 
 =over 2
 
@@ -224,8 +222,6 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 =item * L<Mojo::HelloWorld>
 
 =item * L<Mojolicious::Lite>
-
-=back
 
 =back
 
@@ -275,11 +271,21 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 
 =item * L<Mojo::IOLoop::Client>
 
-=item * L<Mojo::IOLoop::Delay>
-
 =item * L<Mojo::IOLoop::Server>
 
 =item * L<Mojo::IOLoop::Stream>
+
+=over 2
+
+=item * L<Mojo::IOLoop::Stream::HTTPClient>
+
+=item * L<Mojo::IOLoop::Stream::HTTPServer>
+
+=item * L<Mojo::IOLoop::Stream::WebSocketClient>
+
+=item * L<Mojo::IOLoop::Stream::WebSocketServer>
+
+=back
 
 =item * L<Mojo::IOLoop::TLS>
 
@@ -354,6 +360,14 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 =item * L<Mojo::Parameters>
 
 =item * L<Mojo::Path>
+
+=item * L<Mojo::Promise>
+
+=over 2
+
+=item * L<Mojo::IOLoop::Delay>
+
+=back
 
 =item * L<Mojo::Server::Hypnotoad>
 

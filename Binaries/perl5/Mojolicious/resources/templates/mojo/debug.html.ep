@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- Request ID: <%= $c->req->request_id %> -->
 <html>
   <head>
     % my $title = stash('exception') ? 'Server error' : 'Page not found';
@@ -83,7 +84,7 @@
         text-shadow: #333 0 1px 0;
       }
       #footer {
-        padding-top: 1em;
+        padding-top: 0.5em;
         text-align: center;
       }
       #nothing {
@@ -131,7 +132,7 @@
   <body>
     %= include 'mojo/menubar'
     <script>
-      function mojoDrawer (handle, drawer) {
+      function mojoDrawer(handle, drawer) {
         $(handle).on('click', function () {
           $(drawer).slideToggle('slow');
           var text = $(handle + ' div.tap').text();
@@ -194,7 +195,7 @@
             <div class="tap">tap for more</div>
             <script>
               var current = '#context';
-              function mojoShowcase () {
+              function mojoShowcase() {
                 $('#showcase').on('click', function () {
                   $(this).unbind('click');
                   $(current).slideToggle('slow', function () {
@@ -271,6 +272,7 @@
       <div id="request" class="box infobox spaced">
         <table>
           % my $req = $c->req;
+          %= $kv->('Request ID' => $req->request_id)
           %= $kv->(Method => $req->method)
           % my $url = $req->url;
           %= $kv->(URL => $url->to_string)
@@ -323,8 +325,12 @@
       % }
     </div>
     <div id="footer">
-      %= link_to 'http://mojolicious.org' => begin
-        %= image '/mojo/logo-black.png', alt => 'Mojolicious logo'
+      %= link_to 'https://mojolicious.org' => begin
+        <picture>
+          <img src="<%= url_for '/mojo/logo-black.png' %>"
+            srcset="<%= url_for '/mojo/logo-black-2x.png' %> 2x"
+            alt="Mojolicious logo">
+        </picture>
       % end
     </div>
   </body>
