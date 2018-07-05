@@ -12,6 +12,7 @@ my %MESSAGES = (
   100 => 'Continue',
   101 => 'Switching Protocols',
   102 => 'Processing',                         # RFC 2518 (WebDAV)
+  103 => 'Early Hints',                        # RFC 8297
   200 => 'OK',
   201 => 'Created',
   202 => 'Accepted',
@@ -49,6 +50,7 @@ my %MESSAGES = (
   416 => 'Request Range Not Satisfiable',
   417 => 'Expectation Failed',
   418 => "I'm a teapot",                       # RFC 2324 :)
+  421 => 'Misdirected Request',                # RFC 7540
   422 => 'Unprocessable Entity',               # RFC 2518 (WebDAV)
   423 => 'Locked',                             # RFC 2518 (WebDAV)
   424 => 'Failed Dependency',                  # RFC 2518 (WebDAV)
@@ -110,6 +112,9 @@ sub fix_headers {
   # Date
   my $headers = $self->headers;
   $headers->date(Mojo::Date->new->to_string) unless $headers->date;
+
+  # RFC 7230 3.3.2
+  $headers->remove('Content-Length') if $self->is_empty;
 
   return $self;
 }
@@ -211,7 +216,7 @@ HTTP response status code.
   $res     = $res->max_message_size(1024);
 
 Maximum message size in bytes, defaults to the value of the
-C<MOJO_MAX_MESSAGE_SIZE> environment variable or C<2147483648> (2GB). Setting
+C<MOJO_MAX_MESSAGE_SIZE> environment variable or C<2147483648> (2GiB). Setting
 the value to C<0> will allow messages of indefinite size.
 
 =head2 message
@@ -314,6 +319,6 @@ Size of the status-line in bytes. Note that this method finalizes the response.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

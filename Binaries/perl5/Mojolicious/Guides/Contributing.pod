@@ -37,8 +37,8 @@ activity it will get reopened just as quickly.
 =head2 Reporting security issues
 
 Please report security issues directly to the pumpkin-holder via email, which is
-currently Sebastian Riedel (C<sri@cpan.org>), and give us a few days to develop
-and release a proper fix.
+currently Sebastian Riedel (C<kraih@mojolicious.org>), and give us a few days to
+develop and release a proper fix.
 
 =head1 RESOLVING ISSUES
 
@@ -80,11 +80,11 @@ without them, and update relevant documentation.
 
 While the L<Mojolicious> distribution covers a wide range of features, we are
 rather conservative when it comes to adding new ones. So if your contribution
-is not a bug fix, you can drastically increase its chances of getting accepted
-by discussing it in advance on the
-L<mailing list|http://groups.google.com/group/mojolicious> or the official IRC
-channel C<#mojo> on C<irc.perl.org>
-(L<chat now!|https://chat.mibbit.com/?channel=%23mojo&server=irc.perl.org>).
+is not a simple bug fix, it is B<strongly recommended> that you discuss it in
+advance on the L<mailing list|http://groups.google.com/group/mojolicious> or the
+official IRC channel C<#mojo> on C<irc.perl.org>
+(L<chat now!|https://chat.mibbit.com/?channel=%23mojo&server=irc.perl.org>), to
+avoid unnecessary work and to increase its chances of getting accepted.
 
 The following mission statement and rules are the foundation of all L<Mojo> and
 L<Mojolicious> development. Please make sure that your contribution aligns well
@@ -180,10 +180,7 @@ No names outside of C<Mojolicious.pm>.
 L<Mojolicious> is open source and free to use. However, the amount of effort
 needed to maintain the project and develop new features for it is not
 sustainable without proper financial backing. You can support the ongoing
-development of L<Mojolicious> through
-L<Gratipay|https://gratipay.com/mojolicious>,
-L<PayPal|https://www.paypal.me/kraih> or Bitcoin
-(C<1Cid78CmK4hvf78Ry8K2XeDx8pQHNh4hbz>).
+development of L<Mojolicious> through L<PayPal|https://www.paypal.me/kraih>.
 
 If you run a business and use L<Mojolicious> in a revenue generating product, it
 makes business sense to support L<Mojolicious> development. Because it ensures
@@ -191,8 +188,8 @@ that the project your product relies on stays healthy and actively maintained.
 It can also help your exposure within the community and will make it easier to
 attract L<Mojolicious> developers.
 
-Please email Sebastian Riedel (C<sri@cpan.org>) if you have any questions about
-becoming a sponsor.
+Please email Sebastian Riedel (C<kraih@mojolicious.org>) if you have any
+questions about becoming a sponsor.
 
 =head1 CODE OF CONDUCT
 
@@ -217,7 +214,7 @@ In addition, violations of this code outside these spaces may affect a person's
 ability to participate within them.
 
 If you believe someone is violating the code of conduct, we ask that you report
-it by emailing Joel Berger (C<jberger@cpan.org>) or other members of
+it by emailing Joel Berger (C<jberger@mojolicious.org>) or other members of
 L<the team|Mojolicious/"CORE DEVELOPERS">.
 
 =over 2

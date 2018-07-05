@@ -8,7 +8,6 @@ use Mojo::URL;
 use Mojo::Util;
 use Mojolicious::Routes::Match;
 use Scalar::Util ();
-use Time::HiRes  ();
 
 has [qw(app tx)];
 has match =>
@@ -164,11 +163,21 @@ sub render {
   # Template may be first argument
   my ($template, $args) = (@_ % 2 ? shift : undef, {@_});
   $args->{template} = $template if $template;
-  my $app     = $self->app;
+  my $app = $self->app;
   my $plugins = $app->plugins->emit_hook(before_render => $self, $args);
-  my $maybe   = delete $args->{'mojo.maybe'};
 
-  my $ts = $args->{'mojo.string'};
+  # Localize "extends" and "layout" to allow argument overrides
+  my ($maybe, $ts) = @{$args}{'mojo.maybe', 'mojo.string'};
+  my $stash = $self->stash;
+  local $stash->{layout}  = $stash->{layout}  if exists $stash->{layout};
+  local $stash->{extends} = $stash->{extends} if exists $stash->{extends};
+
+  # Rendering to string
+  local @{$stash}{keys %$args} if $ts || $maybe;
+  delete @{$stash}{qw(layout extends)} if $ts;
+
+  # All other arguments just become part of the stash
+  @$stash{keys %$args} = values %$args;
   my ($output, $format) = $app->renderer->render($self, $args);
 
   # Maybe no 404
@@ -180,7 +189,7 @@ sub render {
   my $headers = $self->res->body($output)->headers;
   $headers->content_type($app->types->type($format) || 'text/plain')
     unless $headers->content_type;
-  return !!$self->rendered($self->stash->{status});
+  return !!$self->rendered($stash->{status});
 }
 
 sub render_later { shift->stash('mojo.rendered' => 1) }
@@ -201,11 +210,10 @@ sub rendered {
   if (!$stash->{'mojo.finished'} && ++$stash->{'mojo.finished'}) {
 
     # Disable auto rendering and stop timer
-    my $app = $self->render_later->app;
-    if (my $started = delete $stash->{'mojo.started'}) {
-      my $elapsed
-        = Time::HiRes::tv_interval($started, [Time::HiRes::gettimeofday()]);
-      my $rps  = $elapsed == 0 ? '??' : sprintf '%.3f', 1 / $elapsed;
+    my $app    = $self->render_later->app;
+    my $timing = $self->helpers->timing;
+    if (defined(my $elapsed = $timing->elapsed('mojo.timer'))) {
+      my $rps  = $timing->rps($elapsed) // '??';
       my $code = $res->code;
       my $msg  = $res->message || $res->default_message($code);
       $app->log->debug("$code $msg (${elapsed}s, $rps/s)");
@@ -340,8 +348,8 @@ sub validation {
   my $hash   = $req->params->to_hash;
   $hash->{csrf_token} //= $header if $token && $header;
   $hash->{$_} = $req->every_upload($_) for map { $_->name } @{$req->uploads};
-  my $validation = $self->app->validator->validation->input($hash);
-  return $stash->{'mojo.validation'} = $validation->csrf_token($token);
+  my $v = $self->app->validator->validation->input($hash);
+  return $stash->{'mojo.validation'} = $v->csrf_token($token);
 }
 
 sub write {
@@ -432,7 +440,7 @@ underlying connection might get closed early.
   my $address = $c->tx->remote_address;
   my $port    = $c->tx->remote_port;
 
-  # Increase size limit for WebSocket messages to 16MB
+  # Increase size limit for WebSocket messages to 16MiB
   $c->tx->max_websocket_size(16777216) if $c->tx->is_websocket;
 
   # Perform non-blocking operation without knowing the connection status
@@ -584,7 +592,7 @@ message body, in that order. If there are multiple values sharing the same
 name, and you want to access more than just the last one, you can use
 L</"every_param">. Parts of the request body need to be loaded into memory to
 parse C<POST> parameters, so you have to make sure it is not excessively large.
-There's a 16MB limit for requests by default.
+There's a 16MiB limit for requests by default.
 
   # Get first value
   my $first = $c->every_param('foo')->[0];
@@ -688,7 +696,9 @@ automatic rendering would result in a response.
 
 Try to render content, but do not call
 L<Mojolicious::Plugin::DefaultHelpers/"reply-E<gt>not_found"> if no response
-could be generated, takes the same arguments as L</"render">.
+could be generated, all arguments get localized automatically and are only
+available during this render operation, takes the same arguments as
+L</"render">.
 
   # Render template "index_local" only if it exists
   $c->render_maybe('index_local') or $c->render('index');
@@ -770,14 +780,11 @@ Get L<Mojo::Message::Response> object from L</"tx">.
     any  => sub {...}
   );
 
-Automatically select best possible representation for resource from C<Accept>
-request header, C<format> stash value or C<format> C<GET>/C<POST> parameter,
+Automatically select best possible representation for resource from C<format>
+C<GET>/C<POST> parameter, C<format> stash value or C<Accept> request header,
 defaults to L<Mojolicious::Renderer/"default_format"> or rendering an empty
 C<204> response. Each representation can be handled with a callback or a hash
-reference containing arguments to be passed to L</"render">. Since browsers
-often don't really know what they actually want, unspecific C<Accept> request
-headers with more than one MIME type will be ignored, unless the
-C<X-Requested-With> header is set to the value C<XMLHttpRequest>.
+reference containing arguments to be passed to L</"render">.
 
   # Everything else than "json" and "xml" gets a 204 response
   $c->respond_to(
@@ -840,7 +847,7 @@ usually defaults to C<15> seconds.
 Persistent data storage for the next few requests, all session data gets
 serialized with L<Mojo::JSON> and stored Base64 encoded in HMAC-SHA1 signed
 cookies, to prevent tampering. Note that cookies usually have a C<4096> byte
-(4KB) limit, depending on browser.
+(4KiB) limit, depending on browser.
 
   # Manipulate session
   $c->session->{foo} = 'bar';
@@ -904,6 +911,18 @@ C<mojo.*> prefix are reserved for internal use.
 
 Generate a portable L<Mojo::URL> object with base for a path, URL or route.
 
+  # Rebuild URL for the current route
+  $c->url_for;
+
+  # Rebuild URL for the current route, but replace the "name" placeholder value
+  $c->url_for(name => 'sebastian');
+
+  # Absolute URL for the current route
+  $c->url_for->to_abs;
+
+  # Build URL for route "test" with two placeholder values
+  $c->url_for('test', name => 'sebastian', foo => 'bar');
+
   # "http://127.0.0.1:3000/index.html" if application was started with Morbo
   $c->url_for('/index.html')->to_abs;
 
@@ -924,24 +943,24 @@ to inherit query parameters from the current request.
 
 =head2 validation
 
-  my $validation = $c->validation;
+  my $v = $c->validation;
 
 Get L<Mojolicious::Validator::Validation> object for current request to
 validate file uploads as well as C<GET> and C<POST> parameters extracted from
 the query string and C<application/x-www-form-urlencoded> or
 C<multipart/form-data> message body. Parts of the request body need to be loaded
 into memory to parse C<POST> parameters, so you have to make sure it is not
-excessively large. There's a 16MB limit for requests by default.
+excessively large. There's a 16MiB limit for requests by default.
 
   # Validate GET/POST parameter
-  my $validation = $c->validation;
-  $validation->required('title', 'trim')->size(3, 50);
-  my $title = $validation->param('title');
+  my $v = $c->validation;
+  $v->required('title', 'trim')->size(3, 50);
+  my $title = $v->param('title');
 
   # Validate file upload
-  my $validation = $c->validation;
-  $validation->required('tarball')->upload->size(1, 1048576);
-  my $tarball = $validation->param('tarball');
+  my $v = $c->validation;
+  $v->required('tarball')->upload->size(1, 1048576);
+  my $tarball = $v->param('tarball');
 
 =head2 write
 
@@ -1048,6 +1067,6 @@ L<Mojolicious::Plugin::TagHelpers>.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

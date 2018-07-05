@@ -9,6 +9,9 @@ use feature ();
 use Carp         ();
 use Scalar::Util ();
 
+# Defer to runtime so Mojo::Util can use "-strict"
+require Mojo::Util;
+
 # Only Perl 5.14+ requires it on demand
 use IO::Handle ();
 
@@ -16,20 +19,8 @@ use IO::Handle ();
 use constant ROLES =>
   !!(eval { require Role::Tiny; Role::Tiny->VERSION('2.000001'); 1 });
 
-# Supported on Perl 5.22+
-my $NAME
-  = eval { require Sub::Util; Sub::Util->can('set_subname') } || sub { $_[1] };
-
 # Protect subclasses using AUTOLOAD
 sub DESTROY { }
-
-# Declared here to avoid circular require problems in Mojo::Util
-sub _monkey_patch {
-  my ($class, %patch) = @_;
-  no strict 'refs';
-  no warnings 'redefine';
-  *{"${class}::$_"} = $NAME->("${class}::$_", $patch{$_}) for keys %patch;
-}
 
 sub attr {
   my ($self, $attrs, $value) = @_;
@@ -43,56 +34,63 @@ sub attr {
 
     # Very performance-sensitive code with lots of micro-optimizations
     if (ref $value) {
-      _monkey_patch $class, $attr, sub {
+      my $sub = sub {
         return
           exists $_[0]{$attr} ? $_[0]{$attr} : ($_[0]{$attr} = $value->($_[0]))
           if @_ == 1;
         $_[0]{$attr} = $_[1];
         $_[0];
       };
+      Mojo::Util::monkey_patch($class, $attr, $sub);
     }
     elsif (defined $value) {
-      _monkey_patch $class, $attr, sub {
+      my $sub = sub {
         return exists $_[0]{$attr} ? $_[0]{$attr} : ($_[0]{$attr} = $value)
           if @_ == 1;
         $_[0]{$attr} = $_[1];
         $_[0];
       };
+      Mojo::Util::monkey_patch($class, $attr, $sub);
     }
     else {
-      _monkey_patch $class, $attr,
-        sub { return $_[0]{$attr} if @_ == 1; $_[0]{$attr} = $_[1]; $_[0] };
+      Mojo::Util::monkey_patch($class, $attr,
+        sub { return $_[0]{$attr} if @_ == 1; $_[0]{$attr} = $_[1]; $_[0] });
     }
   }
 }
 
 sub import {
-  my $class = shift;
-  return unless my $flag = shift;
+  my ($class, $caller) = (shift, caller);
+  return unless my @flags = @_;
 
   # Base
-  if ($flag eq '-base') { $flag = $class }
+  if ($flags[0] eq '-base') { $flags[0] = $class }
 
-  # Strict
-  elsif ($flag eq '-strict') { $flag = undef }
-
-  # Module
-  elsif ((my $file = $flag) && !$flag->can('new')) {
-    $file =~ s!::|'!/!g;
-    require "$file.pm";
+  # Role
+  if ($flags[0] eq '-role') {
+    Carp::croak 'Role::Tiny 2.000001+ is required for roles' unless ROLES;
+    Mojo::Util::monkey_patch($caller, 'has', sub { attr($caller, @_) });
+    eval "package $caller; use Role::Tiny; 1" or die $@;
   }
 
-  # ISA
-  if ($flag) {
-    my $caller = caller;
+  # Module and not -strict
+  elsif ($flags[0] !~ /^-/) {
     no strict 'refs';
-    push @{"${caller}::ISA"}, $flag;
-    _monkey_patch $caller, 'has', sub { attr($caller, @_) };
+    require(Mojo::Util::class_to_path($flags[0])) unless $flags[0]->can('new');
+    push @{"${caller}::ISA"}, $flags[0];
+    Mojo::Util::monkey_patch($caller, 'has', sub { attr($caller, @_) });
   }
 
   # Mojo modules are strict!
   $_->import for qw(strict warnings utf8);
   feature->import(':5.10');
+
+  # Signatures (Perl 5.20+)
+  if (($flags[1] || '') eq '-signatures') {
+    Carp::croak 'Subroutine signatures require Perl 5.20+' if $] < 5.020;
+    require experimental;
+    experimental->import('signatures');
+  }
 }
 
 sub new {
@@ -159,8 +157,10 @@ interfaces.
   use Mojo::Base -strict;
   use Mojo::Base -base;
   use Mojo::Base 'SomeBaseClass';
+  use Mojo::Base -role;
 
-All three forms save a lot of typing.
+All four forms save a lot of typing. Note that role support depends on
+L<Role::Tiny> (2.000001+).
 
   # use Mojo::Base -strict;
   use strict;
@@ -187,6 +187,56 @@ All three forms save a lot of typing.
   require SomeBaseClass;
   push @ISA, 'SomeBaseClass';
   sub has { Mojo::Base::attr(__PACKAGE__, @_) }
+
+  # use Mojo::Base -role;
+  use strict;
+  use warnings;
+  use utf8;
+  use feature ':5.10';
+  use IO::Handle ();
+  use Role::Tiny;
+  sub has { Mojo::Base::attr(__PACKAGE__, @_) }
+
+On Perl 5.20+ you can also append a C<-signatures> flag to all three forms and
+enable support for L<subroutine signatures|perlsub/"Signatures">.
+
+  # Also enable signatures
+  use Mojo::Base -strict, -signatures;
+  use Mojo::Base -base, -signatures;
+  use Mojo::Base 'SomeBaseClass', -signatures;
+  use Mojo::Base -role, -signatures;
+
+This will also disable experimental warnings on versions of Perl where this
+feature was still experimental.
+
+=head1 FLUENT INTERFACES
+
+Fluent interfaces are a way to design object-oriented APIs around method
+chaining to create domain-specific languages, with the goal of making the
+readablity of the source code close to written prose.
+
+  package Duck;
+  use Mojo::Base -base;
+
+  has 'name';
+
+  sub quack {
+    my $self = shift;
+    my $name = $self->name;
+    say "$name: Quack!"
+  }
+
+L<Mojo::Base> will help you with this by having all attribute accessors created
+with L</"has"> (or L</"attr">) return their invocant (C<$self>) whenever they
+are used to assign a new attribute value.
+
+  Duck->new->name('Donald')->quack;
+
+In this case the C<name> attribute accessor is called on the object created by
+C<Duck-E<gt>new>. It assigns a new attribute value and then returns the C<Duck>
+object, so the C<quack> method can be called on it afterwards. These method
+chains can continue until one of the methods called does not return the C<Duck>
+object.
 
 =head1 FUNCTIONS
 
@@ -271,6 +321,6 @@ L<Role::Tiny> (2.000001+).
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

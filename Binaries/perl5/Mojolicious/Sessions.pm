@@ -44,7 +44,7 @@ sub store {
 
   # Generate "expires" value from "expiration" if necessary
   my $expiration = $session->{expiration} // $self->default_expiration;
-  my $default = delete $session->{expires};
+  my $default    = delete $session->{expires};
   $session->{expires} = $default || time + $expiration
     if $expiration || $default;
 
@@ -179,6 +179,6 @@ Store session data in signed cookie.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

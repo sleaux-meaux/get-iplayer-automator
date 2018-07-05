@@ -12,13 +12,13 @@ use Socket qw(IPPROTO_TCP SOCK_STREAM TCP_NODELAY);
 # Non-blocking name resolution requires Net::DNS::Native
 use constant NNR => $ENV{MOJO_NO_NNR}
   ? 0
-  : eval 'use Net::DNS::Native 0.15 (); 1';
-my $NDN = NNR ? Net::DNS::Native->new(pool => 5, extra_thread => 1) : undef;
+  : eval { require Net::DNS::Native; Net::DNS::Native->VERSION('0.15'); 1 };
+my $NDN;
 
 # SOCKS support requires IO::Socket::Socks
 use constant SOCKS => $ENV{MOJO_NO_SOCKS}
   ? 0
-  : eval 'use IO::Socket::Socks 0.64 (); 1';
+  : eval { require IO::Socket::Socks; IO::Socket::Socks->VERSION('0.64'); 1 };
 use constant READ  => SOCKS ? IO::Socket::Socks::SOCKS_WANT_READ()  : 0;
 use constant WRITE => SOCKS ? IO::Socket::Socks::SOCKS_WANT_WRITE() : 0;
 
@@ -45,6 +45,7 @@ sub connect {
     if !NNR || $args->{handle} || $args->{path};
 
   # Non-blocking name resolution
+  $NDN //= Net::DNS::Native->new(pool => 5, extra_thread => 1);
   my $handle = $self->{dns} = $NDN->getaddrinfo($address, _port($args),
     {protocol => IPPROTO_TCP, socktype => SOCK_STREAM});
   $reactor->io(
@@ -63,7 +64,7 @@ sub connect {
 
 sub _cleanup {
   my $self = shift;
-  $NDN->timedout($self->{dns}) if $self->{dns};
+  $NDN->timedout($self->{dns}) if $NDN && $self->{dns};
   return unless my $reactor = $self->reactor;
   $self->{$_} && $reactor->remove(delete $self->{$_}) for qw(dns timer handle);
   return $self;
@@ -271,7 +272,7 @@ True if L<IO::Socket::SOCKS> 0.64+ is installed and SOCKS5 support enabled.
 
 Open a socket connection to a remote host. Note that non-blocking name
 resolution depends on L<Net::DNS::Native> (0.15+), SOCKS5 support on
-L<IO::Socket::Socks> (0.64), and TLS support on L<IO::Socket::SSL> (1.94+).
+L<IO::Socket::Socks> (0.64), and TLS support on L<IO::Socket::SSL> (2.009+).
 
 These options are currently available:
 
@@ -348,7 +349,7 @@ Enable TLS.
 
   tls_ca => '/etc/tls/ca.crt'
 
-Path to TLS certificate authority file. Also activates hostname verification.
+Path to TLS certificate authority file.
 
 =item tls_cert
 
@@ -362,10 +363,22 @@ Path to the TLS certificate file.
 
 Path to the TLS key file.
 
+=item tls_protocols
+
+  tls_protocols => ['foo', 'bar']
+
+ALPN protocols to negotiate.
+
+=item tls_verify
+
+  tls_verify => 0x00
+
+TLS verification mode.
+
 =back
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

@@ -1,11 +1,13 @@
 package Mojolicious;
-use Mojo::Base 'Mojo';
+use Mojo::Base -base;
 
 # "Fry: Shut up and take my money!"
 use Carp ();
 use Mojo::Exception;
+use Mojo::Home;
 use Mojo::Log;
 use Mojo::Util;
+use Mojo::UserAgent;
 use Mojolicious::Commands;
 use Mojolicious::Controller;
 use Mojolicious::Plugins;
@@ -16,7 +18,6 @@ use Mojolicious::Static;
 use Mojolicious::Types;
 use Mojolicious::Validator;
 use Scalar::Util ();
-use Time::HiRes  ();
 
 has commands => sub {
   my $commands = Mojolicious::Commands->new(app => shift);
@@ -24,6 +25,7 @@ has commands => sub {
   return $commands;
 };
 has controller_class => 'Mojolicious::Controller';
+has home             => sub { Mojo::Home->new->detect(ref shift) };
 has log              => sub {
   my $self = shift;
 
@@ -38,7 +40,7 @@ has log              => sub {
   return $mode eq 'development' ? $log : $log->level('info');
 };
 has 'max_request_size';
-has mode => sub { $ENV{MOJO_MODE} || $ENV{PLACK_ENV} || 'development' };
+has mode     => sub { $ENV{MOJO_MODE} || $ENV{PLACK_ENV} || 'development' };
 has moniker  => sub { Mojo::Util::decamelize ref shift };
 has plugins  => sub { Mojolicious::Plugins->new };
 has renderer => sub { Mojolicious::Renderer->new };
@@ -52,13 +54,18 @@ has secrets  => sub {
   # Default to moniker
   return [$self->moniker];
 };
-has sessions  => sub { Mojolicious::Sessions->new };
-has static    => sub { Mojolicious::Static->new };
-has types     => sub { Mojolicious::Types->new };
+has sessions => sub { Mojolicious::Sessions->new };
+has static   => sub { Mojolicious::Static->new };
+has types    => sub { Mojolicious::Types->new };
+has ua       => sub {
+  my $ua = Mojo::UserAgent->new;
+  Scalar::Util::weaken $ua->server->app(shift)->{app};
+  return $ua;
+};
 has validator => sub { Mojolicious::Validator->new };
 
 our $CODENAME = 'Doughnut';
-our $VERSION  = '7.43';
+our $VERSION  = '7.85';
 
 sub AUTOLOAD {
   my $self = shift;
@@ -102,6 +109,7 @@ sub build_tx {
   return $tx;
 }
 
+sub config   { Mojo::Util::_stash(config   => @_) }
 sub defaults { Mojo::Util::_stash(defaults => @_) }
 
 sub dispatch {
@@ -120,8 +128,9 @@ sub dispatch {
     my $req    = $c->req;
     my $method = $req->method;
     my $path   = $req->url->path->to_abs_string;
-    $self->log->debug(qq{$method "$path"});
-    $stash->{'mojo.started'} = [Time::HiRes::gettimeofday];
+    my $id     = $req->request_id;
+    $self->log->debug(qq{$method "$path" ($id)});
+    $c->helpers->timing->begin('mojo.timer');
   }
 
   # Routes
@@ -157,8 +166,8 @@ sub new {
   my $self = shift->SUPER::new(@_);
 
   my $home = $self->home;
-  push @{$self->renderer->paths}, $home->child('templates');
-  push @{$self->static->paths},   $home->child('public');
+  push @{$self->renderer->paths}, $home->child('templates')->to_string;
+  push @{$self->static->paths},   $home->child('public')->to_string;
 
   # Default to controller and application namespace
   my $r = $self->routes->namespaces(["@{[ref $self]}::Controller", ref $self]);
@@ -185,6 +194,8 @@ sub plugin {
   my $self = shift;
   $self->plugins->register_plugin(shift, $self, @_);
 }
+
+sub server { $_[0]->plugins->emit_hook(before_server_start => @_[1, 0]) }
 
 sub start {
   my $self = shift;
@@ -245,6 +256,21 @@ Take a look at our excellent documentation in L<Mojolicious::Guides>!
 
 L<Mojolicious> will emit the following hooks in the listed order.
 
+=head2 before_server_start
+
+Emitted right before the application server is started, for web servers that
+support it, which includes all the built-in ones (except for
+L<Mojo::Server::CGI>). Note that this hook is EXPERIMENTAL and might change
+without warning!
+
+  $app->hook(before_server_start => sub {
+    my ($server, $app) = @_;
+    ...
+  });
+
+Useful for reconfiguring application servers dynamically or collecting server
+diagnostics information. (Passed the server and application objects)
+
 =head2 after_build_tx
 
 Emitted right after the transaction is built and before the HTTP request gets
@@ -258,7 +284,7 @@ parsed.
 This is a very powerful hook and should not be used lightly, it makes some
 rather advanced features such as upload progress bars possible. Note that this
 hook will not work for embedded applications, because only the host application
-gets to build transactions. (Passed the transaction and application object)
+gets to build transactions. (Passed the transaction and application objects)
 
 =head2 around_dispatch
 
@@ -382,8 +408,7 @@ Useful for rewriting outgoing responses and other post-processing tasks.
 
 =head1 ATTRIBUTES
 
-L<Mojolicious> inherits all attributes from L<Mojo> and implements the
-following new ones.
+L<Mojolicious> implements the following attributes.
 
 =head2 commands
 
@@ -404,6 +429,17 @@ L<Mojolicious::Commands> object.
 Class to be used for the default controller, defaults to
 L<Mojolicious::Controller>. Note that this class needs to have already been
 loaded before the first request arrives.
+
+=head2 home
+
+  my $home = $app->home;
+  $app     = $app->home(Mojo::Home->new);
+
+The home directory of your application, defaults to a L<Mojo::Home> object
+which stringifies to the actual path.
+
+  # Portably generate path relative to home directory
+  my $path = $app->home->child('data', 'important.txt');
 
 =head2 log
 
@@ -553,6 +589,17 @@ L<Mojolicious::Types> object.
   # Add custom MIME type
   $app->types->type(twt => 'text/tweet');
 
+=head2 ua
+
+  my $ua = $app->ua;
+  $app   = $app->ua(Mojo::UserAgent->new);
+
+A full featured HTTP user agent for use in your applications, defaults to a
+L<Mojo::UserAgent> object.
+
+  # Perform blocking request
+  say $app->ua->get('example.com')->result->body;
+
 =head2 validator
 
   my $validator = $app->validator;
@@ -562,20 +609,20 @@ Validate values, defaults to a L<Mojolicious::Validator> object.
 
   # Add validation check
   $app->validator->add_check(foo => sub {
-    my ($validation, $name, $value) = @_;
+    my ($v, $name, $value) = @_;
     return $value ne 'foo';
   });
 
   # Add validation filter
   $app->validator->add_filter(quotemeta => sub {
-    my ($validation, $name, $value) = @_;
+    my ($v, $name, $value) = @_;
     return quotemeta $value;
   });
 
 =head1 METHODS
 
-L<Mojolicious> inherits all methods from L<Mojo> and implements the following
-new ones.
+L<Mojolicious> inherits all methods from L<Mojo::Base> and implements the
+following new ones.
 
 =head2 build_controller
 
@@ -593,6 +640,21 @@ Build default controller object with L</"controller_class">.
   my $tx = $app->build_tx;
 
 Build L<Mojo::Transaction::HTTP> object and emit L</"after_build_tx"> hook.
+
+=head2 config
+
+  my $hash = $app->config;
+  my $foo  = $app->config('foo');
+  $app     = $app->config({foo => 'bar', baz => 23});
+  $app     = $app->config(foo => 'bar', baz => 23);
+
+Application configuration.
+
+  # Remove value
+  my $foo = delete $app->config->{foo};
+
+  # Assign multiple values at once
+  $app->config(foo => 'test', bar => 23);
 
 =head2 defaults
 
@@ -690,6 +752,13 @@ default exception handling.
 Load a plugin, for a full list of example plugins included in the
 L<Mojolicious> distribution see L<Mojolicious::Plugins/"PLUGINS">.
 
+=head2 server
+
+  $app->server(Mojo::Server->new);
+
+Emits the L</"before_server_start"> hook. Note that this method is EXPERIMENTAL
+and might change without warning!
+
 =head2 start
 
   $app->start;
@@ -737,7 +806,7 @@ that have been bundled for internal use.
 
 =head2 Mojolicious Artwork
 
-  Copyright (C) 2010-2017, Sebastian Riedel.
+  Copyright (C) 2010-2018, Sebastian Riedel.
 
 Licensed under the CC-SA License, Version 4.0
 L<http://creativecommons.org/licenses/by-sa/4.0>.
@@ -772,12 +841,6 @@ have been used in the past.
 
 2.0, C<Leaf Fluttering In Wind> (U+1F343)
 
-1.4, C<Smiling Face With Sunglasses> (U+1F60E)
-
-1.3, C<Tropical Drink> (U+1F379)
-
-1.1, C<Smiling Cat Face With Heart-Shaped Eyes> (U+1F63B)
-
 1.0, C<Snowflake> (U+2744)
 
 =head1 SPONSORS
@@ -787,7 +850,7 @@ L<The Perl Foundation|http://www.perlfoundation.org>, thank you!
 
 =head1 PROJECT FOUNDER
 
-Sebastian Riedel, C<sri@cpan.org>
+Sebastian Riedel, C<kraih@mojolicious.org>
 
 =head1 CORE DEVELOPERS
 
@@ -795,11 +858,11 @@ Current members of the core team in alphabetical order:
 
 =over 2
 
-Jan Henning Thorsen, C<jhthorsen@cpan.org>
+Jan Henning Thorsen, C<batman@mojolicious.org>
 
-Joel Berger, C<jberger@cpan.org>
+Joel Berger, C<jberger@mojolicious.org>
 
-Marcus Ramberg, C<mramberg@cpan.org>
+Marcus Ramberg, C<marcus@mojolicious.org>
 
 =back
 
@@ -881,6 +944,8 @@ Charlie Brady
 
 Chas. J. Owens IV
 
+Chase Whitener
+
 Christian Hansen
 
 chromatic
@@ -890,6 +955,8 @@ Curt Tilmes
 Dan Book
 
 Daniel Kimsey
+
+Daniel Mantovani
 
 Danijel Tasov
 
@@ -913,9 +980,13 @@ Dotan Dimet
 
 Douglas Christopher Wilson
 
+Ettore Di Giacinto
+
 Eugen Konkov
 
 Eugene Toropov
+
+Flavio Poletti
 
 Gisle Aas
 
@@ -1013,6 +1084,8 @@ Pascal Gaudette
 
 Paul Evans
 
+Paul Robins
+
 Paul Tomlin
 
 Pavel Shaydo
@@ -1047,6 +1120,8 @@ Ryan Jendoubi
 
 Salvador Fandino
 
+Santiago Zarate
+
 Sascha Kiefer
 
 Scott Wiersdorf
@@ -1068,6 +1143,8 @@ Steffen Ullrich
 Stephan Kulow
 
 Stephane Este-Gracias
+
+Stevan Little
 
 Steve Atkins
 
@@ -1109,7 +1186,7 @@ Zoffix Znet
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2008-2017, Sebastian Riedel and others.
+Copyright (C) 2008-2018, Sebastian Riedel and others.
 
 This program is free software, you can redistribute it and/or modify it under
 the terms of the Artistic License version 2.0.
@@ -1117,6 +1194,6 @@ the terms of the Artistic License version 2.0.
 =head1 SEE ALSO
 
 L<https://github.com/kraih/mojo>, L<Mojolicious::Guides>,
-L<http://mojolicious.org>.
+L<https://mojolicious.org>.
 
 =cut

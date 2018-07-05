@@ -9,6 +9,7 @@ has checks => sub {
     equal_to => \&_equal_to,
     in       => \&_in,
     like     => sub { $_[2] !~ $_[3] },
+    num      => \&_num,
     size     => \&_size,
     upload   => sub { !ref $_[2] || !$_[2]->isa('Mojo::Upload') }
   };
@@ -23,19 +24,25 @@ sub validation {
 }
 
 sub _equal_to {
-  my ($validation, $name, $value, $to) = @_;
-  return 1 unless defined(my $other = $validation->input->{$to});
+  my ($v, $name, $value, $to) = @_;
+  return 1 unless defined(my $other = $v->input->{$to});
   return $value ne $other;
 }
 
 sub _in {
-  my ($validation, $name, $value) = (shift, shift, shift);
+  my ($v, $name, $value) = (shift, shift, shift);
   $value eq $_ && return undef for @_;
   return 1;
 }
 
+sub _num {
+  my ($v, $name, $value, $min, $max) = @_;
+  return 1 if $value !~ /^[0-9]+$/;
+  return defined $min && $min > $value || defined $max && $max < $value;
+}
+
 sub _size {
-  my ($validation, $name, $value, $min, $max) = @_;
+  my ($v, $name, $value, $min, $max) = @_;
   my $len = ref $value ? $value->size : length $value;
   return $len < $min || $len > $max;
 }
@@ -54,11 +61,11 @@ Mojolicious::Validator - Validate values
 
   use Mojolicious::Validator;
 
-  my $validator  = Mojolicious::Validator->new;
-  my $validation = $validator->validation;
-  $validation->input({foo => 'bar'});
-  $validation->required('foo')->like(qr/ar$/);
-  say $validation->param('foo');
+  my $validator = Mojolicious::Validator->new;
+  my $v = $validator->validation;
+  $v->input({foo => 'bar'});
+  $v->required('foo')->like(qr/ar$/);
+  say $v->param('foo');
 
 =head1 DESCRIPTION
 
@@ -70,32 +77,42 @@ These validation checks are available by default.
 
 =head2 equal_to
 
-  $validation = $validation->equal_to('foo');
+  $v = $v->equal_to('foo');
 
 String value needs to be equal to the value of another field.
 
 =head2 in
 
-  $validation = $validation->in('foo', 'bar', 'baz');
+  $v = $v->in('foo', 'bar', 'baz');
 
 String value needs to match one of the values in the list.
 
 =head2 like
 
-  $validation = $validation->like(qr/^[A-Z]/);
+  $v = $v->like(qr/^[A-Z]/);
 
 String value needs to match the regular expression.
 
+=head2 num
+
+  $v = $v->num;
+  $v = $v->num(2, 5);
+  $v = $v->num(2, undef);
+  $v = $v->num(undef, 5);
+
+String value needs to be a non-fractional number and if provided in the given
+range.
+
 =head2 size
 
-  $validation = $validation->size(2, 5);
+  $v = $v->size(2, 5);
 
 String value length or size of L<Mojo::Upload> object in bytes needs to be
 between these two values.
 
 =head2 upload
 
-  $validation = $validation->upload;
+  $v = $v->upload;
 
 Value needs to be a L<Mojo::Upload> object, representing a file upload.
 
@@ -105,7 +122,7 @@ These filters are available by default.
 
 =head2 trim
 
-  $validation = $validation->optional('foo', 'trim');
+  $v = $v->optional('foo', 'trim');
 
 Trim whitespace characters from both ends of string value with
 L<Mojo::Util/"trim">.
@@ -120,7 +137,7 @@ L<Mojolicious::Validator> implements the following attributes.
   $validator = $validator->checks({size => sub {...}});
 
 Registered validation checks, by default only L</"equal_to">, L</"in">,
-L</"like">, L</"size"> and L</"upload"> are already defined.
+L</"like">, L</"num">, L</"size"> and L</"upload"> are already defined.
 
 =head1 METHODS
 
@@ -134,7 +151,7 @@ implements the following new ones.
 Register a validation check.
 
   $validator->add_check(foo => sub {
-    my ($validation, $name, $value, @args) = @_;
+    my ($v, $name, $value, @args) = @_;
     ...
     return undef;
   });
@@ -146,24 +163,24 @@ Register a validation check.
 Register a new filter.
 
   $validator->add_filter(foo => sub {
-    my ($validation, $name, $value) = @_;
+    my ($v, $name, $value) = @_;
     ...
     return $value;
   });
 
 =head2 validation
 
-  my $validation = $validator->validation;
+  my $v = $validator->validation;
 
 Build L<Mojolicious::Validator::Validation> object to perform validations.
 
-  my $validation = $validator->validation;
-  $validation->input({foo => 'bar'});
-  $validation->required('foo')->size(1, 5);
-  say $validation->param('foo');
+  my $v = $validator->validation;
+  $v->input({foo => 'bar'});
+  $v->required('foo')->size(1, 5);
+  say $v->param('foo');
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

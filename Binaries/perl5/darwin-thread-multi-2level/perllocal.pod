@@ -1,10 +1,10 @@
-=head2 Fri Sep  8 14:31:03 2017: C<Module> L<IO::Socket::IP|IO::Socket::IP>
+=head2 Wed Jul  4 15:21:07 2018: C<Module> L<Mozilla::CA|Mozilla::CA>
 
 =over 4
 
 =item *
 
-C<installed into: /usr/local/Cellar/get_iplayer/3.02/libexec/lib/perl5>
+C<installed into: /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5>
 
 =item *
 
@@ -12,7 +12,7 @@ C<LINKTYPE: dynamic>
 
 =item *
 
-C<VERSION: 0.39>
+C<VERSION: 20180117>
 
 =item *
 
@@ -20,13 +20,13 @@ C<EXE_FILES: >
 
 =back
 
-=head2 Fri Sep  8 14:31:05 2017: C<Module> L<Mojolicious|Mojolicious>
+=head2 Wed Jul  4 15:21:09 2018: C<Module> L<IO::Socket::SSL|IO::Socket::SSL>
 
 =over 4
 
 =item *
 
-C<installed into: /usr/local/Cellar/get_iplayer/3.02/libexec/lib/perl5>
+C<installed into: /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5>
 
 =item *
 
@@ -34,7 +34,29 @@ C<LINKTYPE: dynamic>
 
 =item *
 
-C<VERSION: 7.43>
+C<VERSION: 2.056>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
+=head2 Wed Jul  4 15:21:15 2018: C<Module> L<Mojolicious|Mojolicious>
+
+=over 4
+
+=item *
+
+C<installed into: /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 7.85>
 
 =item *
 

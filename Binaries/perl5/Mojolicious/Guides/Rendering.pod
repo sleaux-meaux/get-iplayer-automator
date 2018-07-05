@@ -352,7 +352,7 @@ L<Mojolicious::Plugin::DefaultHelpers/"dumper">, and tag helpers like
 L<Mojolicious::Plugin::TagHelpers/"link_to">, which are template specific and
 mostly used to generate HTML tags.
 
-  %= link_to Mojolicious => 'http://mojolicious.org'
+  %= link_to Mojolicious => 'https://mojolicious.org'
 
 In controllers you can also use the method L<Mojolicious::Controller/"helpers">
 to fully qualify helper calls and ensure that they don't conflict with existing
@@ -381,10 +381,10 @@ instead of L<Mojolicious::Controller/"render">.
   );
 
 The best possible representation will be automatically selected from the
-C<Accept> request header, C<format> stash value or C<format> C<GET>/C<POST>
-parameter and stored in the C<format> stash value. To change MIME type mappings
-for the C<Accept> request header or the C<Content-Type> response header you can
-use L<Mojolicious/"types">.
+C<format> C<GET>/C<POST> parameter, C<format> stash value or C<Accept> request
+header and stored in the C<format> stash value. To change MIME type mappings for
+the C<Accept> request header or the C<Content-Type> response header you can use
+L<Mojolicious/"types">.
 
   $c->respond_to(
     json => {json => {hello => 'world'}},
@@ -590,12 +590,15 @@ another.
   @@ foo/bar.html.ep
   <!DOCTYPE html>
   <html>
-    %= include 'header', title => 'Howdy'
+    %= include '_header', title => 'Howdy'
     <body>Bar</body>
   </html>
 
-  @@ header.html.ep
+  @@ _header.html.ep
   <head><title><%= $title %></title></head>
+
+You can name partial templates however you like, but a leading underscore is a
+commonly used naming convention.
 
 =head2 Reusable template blocks
 
@@ -816,16 +819,16 @@ logic with methods like L<Mojolicious::Validator::Validation/"is_valid">.
     my $c = shift;
 
     # Check if parameters have been submitted
-    my $validation = $c->validation;
-    return $c->render unless $validation->has_data;
+    my $v = $c->validation;
+    return $c->render unless $v->has_data;
 
     # Validate parameters ("pass_again" depends on "pass")
-    $validation->required('user')->size(1, 20)->like(qr/^[a-z0-9]+$/);
-    $validation->required('pass_again')->equal_to('pass')
-      if $validation->optional('pass')->size(7, 500)->is_valid;
+    $v->required('user')->size(1, 20)->like(qr/^[a-z0-9]+$/);
+    $v->required('pass_again')->equal_to('pass')
+      if $v->optional('pass')->size(7, 500)->is_valid;
 
     # Render confirmation if validation was successful
-    $c->render('thanks') unless $validation->has_error;
+    $c->render('thanks') unless $v->has_error;
   } => 'index';
 
   app->start;
@@ -886,7 +889,7 @@ L<Mojolicious::Validator::Validation/"error">.
 
   # Add "range" check
   app->validator->add_check(range => sub {
-    my ($validation, $name, $value, $min, $max) = @_;
+    my ($v, $name, $value, $min, $max) = @_;
     return $value < $min || $value > $max;
   });
 
@@ -896,14 +899,14 @@ L<Mojolicious::Validator::Validation/"error">.
     my $c = shift;
 
     # Validate parameters with custom check
-    my $validation = $c->validation;
-    $validation->required('number')->range(3, 23);
+    my $v = $c->validation;
+    $v->required('number')->range(3, 23);
 
     # Render form again if validation failed
-    return $c->render('form') if $validation->has_error;
+    return $c->render('form') if $v->has_error;
 
     # Prevent double form submission with redirect
-    $c->flash(number => $validation->param('number'));
+    $c->flash(number => $v->param('number'));
     $c->redirect_to('form');
   };
 
@@ -947,13 +950,13 @@ L<Mojolicious::Validator::Validation/"csrf_protect">.
     my $c = shift;
 
     # Check CSRF token
-    my $validation = $c->validation;
+    my $v = $c->validation;
     return $c->render(text => 'Bad CSRF token!', status => 403)
-      if $validation->csrf_protect->has_error('csrf_token');
+      if $v->csrf_protect->has_error('csrf_token');
 
-    my $city = $validation->required('city')->param('city');
+    my $city = $v->required('city')->param('city');
     $c->render(text => "Low orbit ion cannon pointed at $city!")
-      unless $validation->has_error;
+      unless $v->has_error;
   } => 'target';
 
   app->start;
@@ -1034,7 +1037,8 @@ Static files are automatically served from the C<public> directories of the
 application, which can be customized with L<Mojolicious::Static/"paths">, or one
 of the C<DATA> sections from L<Mojolicious::Static/"classes">. And if that's not
 enough you can also serve them manually with
-L<Mojolicious::Plugin::DefaultHelpers/"reply-E<gt>static">.
+L<Mojolicious::Plugin::DefaultHelpers/"reply-E<gt>static"> and
+L<Mojolicious::Plugin::DefaultHelpers/"reply-E<gt>file">.
 
   use Mojolicious::Lite;
 
@@ -1047,6 +1051,11 @@ L<Mojolicious::Plugin::DefaultHelpers/"reply-E<gt>static">.
     my $c = shift;
     $c->res->headers->content_disposition('attachment; filename=bar.png;');
     $c->reply->static('foo/bar.png');
+  };
+
+  get '/leak' => sub {
+    my $c = shift;
+    $c->reply->file('/etc/passwd');
   };
 
   app->start;
@@ -1284,6 +1293,40 @@ has actually been written.
   HTTP/1.1 200 OK
   Date: Sat, 13 Sep 2014 16:48:29 GMT
   Content-Length: 12
+  Server: Mojolicious (Perl)
+
+  Hello World!
+
+Instead of providing a C<Content-Length> header you can also call
+L<Mojolicious::Controller/"finish"> and close the connection manually once you
+are done.
+
+  use Mojolicious::Lite;
+
+  get '/' => sub {
+    my $c = shift;
+
+    # Prepare body
+    my $body = 'Hello World!';
+
+    # Start writing directly with a drain callback
+    my $drain;
+    $drain = sub {
+      my $c = shift;
+      my $chunk = substr $body, 0, 1, '';
+      length $chunk ? $c->write($chunk, $drain) : $c->finish;
+    };
+    $c->$drain;
+  };
+
+  app->start;
+
+While this is rather inefficient, as it prevents keep-alive, it is sometimes
+necessary for EventSource and similar applications.
+
+  HTTP/1.1 200 OK
+  Date: Sat, 13 Sep 2014 16:48:29 GMT
+  Connection: close
   Server: Mojolicious (Perl)
 
   Hello World!

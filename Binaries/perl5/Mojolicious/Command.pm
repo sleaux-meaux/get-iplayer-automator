@@ -37,8 +37,9 @@ sub rel_file { path->child(split('/', pop)) }
 
 sub render_data {
   my ($self, $name) = (shift, shift);
-  Mojo::Template->new->name("template $name from DATA section")
+  my $output = Mojo::Template->new->name("template $name from DATA section")
     ->render(data_section(ref $self, $name), @_);
+  return ref $output ? die $output : $output;
 }
 
 sub render_to_file {
@@ -243,6 +244,6 @@ create directory if necessary.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

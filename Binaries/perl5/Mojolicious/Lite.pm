@@ -18,7 +18,7 @@ sub import {
   # Initialize application class
   my $caller = caller;
   no strict 'refs';
-  push @{"${caller}::ISA"}, 'Mojo';
+  push @{"${caller}::ISA"}, 'Mojolicious';
 
   # Generate moniker based on filename
   my $moniker = path($ENV{MOJO_EXE})->basename('.pl', '.pm', '.t');
@@ -50,7 +50,8 @@ sub import {
   Mojo::UserAgent::Server->app($app) unless Mojo::UserAgent::Server->app;
 
   # Lite apps are strict!
-  Mojo::Base->import(-strict);
+  unshift @_, 'Mojo::Base', -strict;
+  goto &Mojo::Base::import;
 }
 
 1;
@@ -80,6 +81,18 @@ Mojolicious::Lite - Micro real-time web framework
 
 L<Mojolicious::Lite> is a tiny domain specific language built around
 L<Mojolicious>, made up of only about a dozen Perl functions.
+
+On Perl 5.20+ you can also use a C<-signatures> flag to enable support for
+L<subroutine signatures|perlsub/"Signatures">.
+
+  use Mojolicious::Lite -signatures;
+
+  get '/:foo' => sub ($c) {
+    my $foo = $c->param('foo');
+    $c->render(text => "Hello from $foo.");
+  };
+
+  app->start;
 
 See L<Mojolicious::Guides::Tutorial> for more!
 
@@ -340,6 +353,6 @@ L<Mojolicious::Lite> inherits all methods from L<Mojolicious>.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

@@ -17,7 +17,8 @@ use Mojo::Util qw(decode encode);
 use Test::More ();
 
 has [qw(message success tx)];
-has ua => sub { Mojo::UserAgent->new->ioloop(Mojo::IOLoop->singleton) };
+has ua =>
+  sub { Mojo::UserAgent->new(insecure => 1)->ioloop(Mojo::IOLoop->singleton) };
 
 # Silent or loud tests
 $ENV{MOJO_LOG_LEVEL} ||= $ENV{HARNESS_IS_VERBOSE} ? 'debug' : 'fatal';
@@ -448,7 +449,9 @@ your tests with the command L<Mojolicious::Command::test> or L<prove>.
 
 If it is not already defined, the C<MOJO_LOG_LEVEL> environment variable will
 be set to C<debug> or C<fatal>, depending on the value of the
-C<HARNESS_IS_VERBOSE> environment variable.
+C<HARNESS_IS_VERBOSE> environment variable. And to make it esier to test
+HTTPS/WSS web services L<Mojo::UserAgent/"insecure"> will be activated by
+default for L</"ua">.
 
 See L<Mojolicious::Guides::Testing> for more.
 
@@ -492,7 +495,7 @@ True if the last test was successful.
   };
   $t->get_ok('/')
     ->status_is(302)
-    ->$location_is('http://mojolicious.org')
+    ->$location_is('https://mojolicious.org')
     ->or(sub { diag 'Must have been Joel!' });
 
 =head2 tx
@@ -699,7 +702,7 @@ Perform a C<GET> request and check for transport errors, takes the same
 arguments as L<Mojo::UserAgent/"get">, except for the callback.
 
   # Run tests against remote host
-  $t->get_ok('http://mojolicious.org/perldoc')->status_is(200);
+  $t->get_ok('https://mojolicious.org/perldoc')->status_is(200);
 
   # Use relative URL for request with Basic authentication
   $t->get_ok('//sri:secr3t@/secrets.json')
@@ -888,8 +891,8 @@ Opposite of L</"message_like">.
 Construct a new L<Test::Mojo> object. In addition to a class name, you can pass
 along a hash reference with configuration values that will be used to
 instantiate the application. The special configuration value C<config_override>
-will be set in L<Mojo/"config"> as well, which is used to disable configuration
-plugins like L<Mojolicious::Plugin::Config> and
+will be set in L<Mojolicious/"config"> as well, which is used to disable
+configuration plugins like L<Mojolicious::Plugin::Config> and
 L<Mojolicious::Plugin::JSONConfig> for tests.
 
 =head2 options_ok
@@ -1061,6 +1064,6 @@ arguments as L<Mojo::UserAgent/"websocket">, except for the callback.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut

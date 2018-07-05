@@ -8,14 +8,16 @@ use Mojo::Util 'camelize';
 use Mojolicious::Routes::Match;
 use Scalar::Util 'weaken';
 
-has base_classes => sub { [qw(Mojolicious::Controller Mojo)] };
+has base_classes => sub { [qw(Mojolicious::Controller Mojolicious)] };
 has cache        => sub { Mojo::Cache->new };
 has [qw(conditions shortcuts)] => sub { {} };
+has types      => sub { {num => qr/[0-9]+/} };
 has hidden     => sub { [qw(attr has new tap)] };
 has namespaces => sub { [] };
 
 sub add_condition { $_[0]->conditions->{$_[1]} = $_[2] and return $_[0] }
 sub add_shortcut  { $_[0]->shortcuts->{$_[1]}  = $_[2] and return $_[0] }
+sub add_type      { $_[0]->types->{$_[1]}      = $_[2] and return $_[0] }
 
 sub continue {
   my ($self, $c) = @_;
@@ -144,7 +146,7 @@ sub _controller {
   my $class = ref $new;
   my $app   = $old->app;
   my $log   = $app->log;
-  if ($new->isa('Mojo')) {
+  if ($new->isa('Mojolicious')) {
     $log->debug(qq{Routing to application "$class"});
 
     # Try to connect routes
@@ -221,6 +223,17 @@ L<Mojolicious::Routes> is the core of the L<Mojolicious> web framework.
 
 See L<Mojolicious::Guides::Routing> for more.
 
+=head1 TYPES
+
+These placeholder types are available by default.
+
+=head2 num
+
+  $r->get('/article/<id:num>');
+
+Placeholder value needs to be a non-fractional number, similar to the regular
+expression C<([0-9]+)>.
+
 =head1 ATTRIBUTES
 
 L<Mojolicious::Routes> inherits all attributes from
@@ -232,7 +245,7 @@ L<Mojolicious::Routes::Route> and implements the following new ones.
   $r          = $r->base_classes(['MyApp::Controller']);
 
 Base classes used to identify controllers, defaults to
-L<Mojolicious::Controller> and L<Mojo>.
+L<Mojolicious::Controller> and L<Mojolicious>.
 
 =head2 cache
 
@@ -273,6 +286,13 @@ Namespaces to load controllers from.
 
 Contains all available shortcuts.
 
+=head2 types
+
+  my $types = $r->types;
+  $r        = $r->types({lower => qr/[a-z]+/});
+
+Registered placeholder types, by default only L</"num"> is already defined.
+
 =head1 METHODS
 
 L<Mojolicious::Routes> inherits all methods from L<Mojolicious::Routes::Route>
@@ -300,6 +320,15 @@ Register a shortcut.
     my ($route, @args) = @_;
     ...
   });
+
+=head2 add_type
+
+  $r = $r->add_type(foo => qr/\w+/);
+  $r = $r->add_type(foo => ['bar', 'baz']);
+
+Register a placeholder type.
+
+  $r->add_type(lower => qr/[a-z]+/);
 
 =head2 continue
 
@@ -341,6 +370,6 @@ Match routes with L<Mojolicious::Routes::Match>.
 
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::Guides>, L<http://mojolicious.org>.
+L<Mojolicious>, L<Mojolicious::Guides>, L<https://mojolicious.org>.
 
 =cut
