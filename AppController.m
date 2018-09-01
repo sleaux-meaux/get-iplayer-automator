@@ -10,10 +10,8 @@
 #import <Sparkle/Sparkle.h>
 #import "HTTPProxy.h"
 #import "Programme.h"
-#import "Safari.h"
 #import "iTunes.h"
 #import "ReasonForFailure.h"
-#import "Chrome.h"
 #import "NPHistoryWindowController.h"
 #import "Get_iPlayer_Automator-Swift.h"
 
@@ -1576,7 +1574,7 @@ NewProgrammeHistory           *sharedHistoryController;
                         [queueException addButtonWithTitle:@"OK"];
                         queueException.messageText = [NSString stringWithFormat:@"Series-Link to Queue Transfer Failed"];
                         queueException.informativeText = @"The recording queue is in an unknown state.  Please restart GiA and clear the recording queue.";
-                        queueException.alertStyle = NSWarningAlertStyle;
+                        queueException.alertStyle = NSAlertStyleWarning;
                         [queueException runModal];
                         queueException = nil;
                     }
@@ -1587,7 +1585,7 @@ NewProgrammeHistory           *sharedHistoryController;
                 [searchException addButtonWithTitle:@"OK"];
                 searchException.messageText = [NSString stringWithFormat:@"Invalid Output!"];
                 searchException.informativeText = @"Please check your query. Your query must not alter the output format of Get_iPlayer. (processAutoRecordData)";
-                searchException.alertStyle = NSWarningAlertStyle;
+                searchException.alertStyle = NSAlertStyleWarning;
                 [searchException runModal];
                 searchException = nil;
             }

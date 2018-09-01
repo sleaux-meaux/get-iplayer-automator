@@ -544,7 +544,7 @@
             [getNameException addButtonWithTitle:@"OK"];
             getNameException.messageText = [NSString stringWithFormat:@"Unknown Error!"];
             getNameException.informativeText = @"An unknown error occured whilst trying to parse Get_iPlayer output (processGetNameData).";
-            getNameException.alertStyle = NSWarningAlertStyle;
+            getNameException.alertStyle = NSAlertStyleWarning;
             [getNameException runModal];
             getNameException = nil;
         }
@@ -567,7 +567,7 @@
                 p.url = url;
             }
             
-            p.status = @"Available";
+            p.status = runDownloads ? @"Waiting..." : @"Available";
             
             if ([type isEqualToString:@"radio"]) {
                 p.radio = @YES;
@@ -577,7 +577,8 @@
     if (!found)
     {
         if ([p.showName isEqualToString:@""] || [p.showName isEqualToString:@"Unknown: Not in Cache"]) {
-            p.showName = @"Unknown: Not in Cache";
+            p.showName = @"Retrieving Metadata...";
+            p.status = @"Unknown";
         }
         
         p.processedPID = @NO;
