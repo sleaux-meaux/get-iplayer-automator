@@ -1,4 +1,4 @@
-=head2 Wed Jul  4 15:21:07 2018: C<Module> L<Mozilla::CA|Mozilla::CA>
+=head2 Fri Aug 17 19:43:31 2018: C<Module> L<Mozilla::CA|Mozilla::CA>
 
 =over 4
 
@@ -20,7 +20,7 @@ C<EXE_FILES: >
 
 =back
 
-=head2 Wed Jul  4 15:21:09 2018: C<Module> L<IO::Socket::SSL|IO::Socket::SSL>
+=head2 Fri Aug 17 19:43:33 2018: C<Module> L<IO::Socket::SSL|IO::Socket::SSL>
 
 =over 4
 
@@ -42,7 +42,7 @@ C<EXE_FILES: >
 
 =back
 
-=head2 Wed Jul  4 15:21:15 2018: C<Module> L<Mojolicious|Mojolicious>
+=head2 Fri Aug 17 19:43:41 2018: C<Module> L<Mojolicious|Mojolicious>
 
 =over 4
 
@@ -56,7 +56,7 @@ C<LINKTYPE: dynamic>
 
 =item *
 
-C<VERSION: 7.85>
+C<VERSION: 7.92>
 
 =item *
 

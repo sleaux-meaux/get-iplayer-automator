@@ -30,10 +30,6 @@
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Delay.pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Server.pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Stream.pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Stream/HTTPClient.pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Stream/HTTPServer.pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Stream/WebSocketClient.pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Stream/WebSocketServer.pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/Subprocess.pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/TLS.pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojo/IOLoop/resources/server.crt
@@ -131,6 +127,7 @@
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/logo-black.png
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/logo-white-2x.png
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/logo-white.png
+/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/logo.png
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/noraptor.png
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/notfound.png
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/lib/perl5/Mojolicious/resources/public/mojo/pinstripe-dark.png
@@ -177,10 +174,6 @@
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Delay.3pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Server.3pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Stream.3pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Stream::HTTPClient.3pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Stream::HTTPServer.3pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Stream::WebSocketClient.3pm
-/Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Stream::WebSocketServer.3pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::Subprocess.3pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::IOLoop::TLS.3pm
 /Users/jpalmer1/dev/get_iplayer_macos/build/payload/usr/local/get_iplayer/perl5/man/man3/Mojo::JSON.3pm
