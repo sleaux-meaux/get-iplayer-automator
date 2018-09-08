@@ -65,7 +65,7 @@ has ua       => sub {
 has validator => sub { Mojolicious::Validator->new };
 
 our $CODENAME = 'Doughnut';
-our $VERSION  = '7.85';
+our $VERSION  = '7.92';
 
 sub AUTOLOAD {
   my $self = shift;
@@ -829,6 +829,8 @@ L<http://www.apache.org/licenses/LICENSE-2.0>.
 Every major release of L<Mojolicious> has a code name, these are the ones that
 have been used in the past.
 
+8.0, C<Supervillain> (U+1F9B9)
+
 7.0, C<Doughnut> (U+1F369)
 
 6.0, C<Clinking Beer Mugs> (U+1F37B)
@@ -845,8 +847,19 @@ have been used in the past.
 
 =head1 SPONSORS
 
+=over 2
+
+=item
+
+L<Stix|https://stix.no> sponsored the creation of the Mojolicious logo (designed
+by Nicolai Graesdal) and transferred its copyright to Sebastian Riedel.
+
+=item
+
 Some of the work on this distribution has been sponsored by
-L<The Perl Foundation|http://www.perlfoundation.org>, thank you!
+L<The Perl Foundation|http://www.perlfoundation.org>.
+
+=back
 
 =head1 PROJECT FOUNDER
 
@@ -899,6 +912,8 @@ Anatoly Sharifulin
 Andre Parker
 
 Andre Vieth
+
+Andreas Guldstrand
 
 Andreas Jaekel
 

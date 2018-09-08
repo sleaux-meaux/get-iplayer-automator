@@ -7,9 +7,14 @@ Mojolicious::Guides - The Mojolicious Guide to the Galaxy
 
 =head1 DON'T PANIC!
 
-We are constantly working on new documentation. Follow us on
-L<GitHub|http://github.com/kraih/mojo> or join the official IRC channel C<#mojo>
-on C<irc.perl.org> to get all the latest updates.
+The L<Mojolicious|https://mojolicious.org> documentation is structured into
+three parts. The L</"TUTORIAL"> everyone starts with, the L</"GUIDES"> that
+explain all major features in detail, and the class L</"REFERENCE"> listing
+all available APIs.
+
+Some parts of the documentation only use the L<Mojolicious::Lite> micro web
+framework for examples, but that's merely a convenience for the reader. Almost
+all features are exactly the same for full L<Mojolicious> applications.
 
 =head1 BASICS
 
@@ -53,6 +58,14 @@ L<features|feature> are enabled, even if examples don't specifically mention it.
 
 Some modules, like L<Mojo::Base> and L<Mojolicious::Lite>, will enable them for
 you automatically, whenever they are used.
+
+=item Variable names
+
+For brevity and clarity, example variables will reflect the type of data the API
+uses. For instance, C<$bytes> or C<$chars> to distinguish whether it is encoded
+bytes or decoded characters in a Perl L<string|perlunifaq>, C<$bool> if the
+value just indicates true or false, C<$c> to denote a L<Mojolicious::Controller>
+object, or C<$app> to denote the L<application|Mojolicious> object.
 
 =back
 
@@ -275,17 +288,7 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 
 =item * L<Mojo::IOLoop::Stream>
 
-=over 2
-
-=item * L<Mojo::IOLoop::Stream::HTTPClient>
-
-=item * L<Mojo::IOLoop::Stream::HTTPServer>
-
-=item * L<Mojo::IOLoop::Stream::WebSocketClient>
-
-=item * L<Mojo::IOLoop::Stream::WebSocketServer>
-
-=back
+=item * L<Mojo::IOLoop::Subprocess>
 
 =item * L<Mojo::IOLoop::TLS>
 
@@ -352,8 +355,6 @@ This is the class hierarchy of the L<Mojolicious> distribution.
 =item * L<Mojo::Exception>
 
 =item * L<Mojo::Headers>
-
-=item * L<Mojo::IOLoop::Subprocess>
 
 =item * L<Mojo::JSON::Pointer>
 
