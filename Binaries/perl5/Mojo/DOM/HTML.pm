@@ -54,9 +54,9 @@ my %END = (body => 'head', optgroup => 'optgroup', option => 'option');
 
 # HTML elements that break paragraphs
 map { $END{$_} = 'p' } (
-  qw(address article aside blockquote details div dl fieldset figcaption),
-  qw(figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr main menu nav ol p),
-  qw(pre section table ul)
+  qw(address article aside blockquote details dialog div dl fieldset),
+  qw(figcaption figure footer form h1 h2 h3 h4 h5 h6 header hgroup hr main),
+  qw(menu nav ol p pre section table ul)
 );
 
 # HTML table elements with optional end tags
@@ -329,7 +329,7 @@ individually.
 
 Generate HTML/XML tag and render it right away. This is a significantly faster
 alternative to L</"tag"> for template systems that have to generate a lot of
-tags. Note that this function is EXPERIMENTAL and might change without warning!
+tags.
 
 =head1 ATTRIBUTES
 
@@ -372,8 +372,7 @@ Render DOM to HTML/XML.
 
   $html = $html->tag('div', id => 'foo', 'safe content');
 
-Generate HTML/XML tag. Note that this method is EXPERIMENTAL and might change
-without warning!
+Generate HTML/XML tag.
 
 =head1 SEE ALSO
 
