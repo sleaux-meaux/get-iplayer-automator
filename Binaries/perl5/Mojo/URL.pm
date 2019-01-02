@@ -110,11 +110,11 @@ sub query {
   # Replace with list
   if (@_ > 1) { $q->pairs([])->parse(@_) }
 
-  # Merge with array
-  elsif (ref $_[0] eq 'ARRAY') { $q->merge(@{$_[0]}) }
+  # Merge with hash
+  elsif (ref $_[0] eq 'HASH') { $q->merge(%{$_[0]}) }
 
-  # Append hash
-  elsif (ref $_[0] eq 'HASH') { $q->append(%{$_[0]}) }
+  # Append array
+  elsif (ref $_[0] eq 'ARRAY') { $q->append(@{$_[0]}) }
 
   # New parameters
   else { $self->{query} = ref $_[0] ? $_[0] : $q->parse($_[0]) }
@@ -427,15 +427,15 @@ Normalized version of L</"scheme">.
 =head2 query
 
   my $query = $url->query;
-  $url      = $url->query([merge => 'with']);
-  $url      = $url->query({append => 'to'});
+  $url      = $url->query({merge => 'to'});
+  $url      = $url->query([append => 'with']);
   $url      = $url->query(replace => 'with');
   $url      = $url->query('a=1&b=2');
   $url      = $url->query(Mojo::Parameters->new);
 
-Query part of this URL, key/value pairs in an array reference will be merged
-with L<Mojo::Parameters/"merge">, and key/value pairs in a hash reference
-appended with L<Mojo::Parameters/"append">, defaults to a L<Mojo::Parameters>
+Query part of this URL, key/value pairs in an array reference will be appended
+with L<Mojo::Parameters/"append">, and key/value pairs in a hash reference
+merged with L<Mojo::Parameters/"merge">, defaults to a L<Mojo::Parameters>
 object.
 
   # "2"
@@ -451,13 +451,13 @@ object.
   Mojo::URL->new('http://example.com?a=1&b=2')->query(a => [2, 3]);
 
   # "http://example.com?a=2&b=2&c=3"
-  Mojo::URL->new('http://example.com?a=1&b=2')->query([a => 2, c => 3]);
+  Mojo::URL->new('http://example.com?a=1&b=2')->query({a => 2, c => 3});
 
   # "http://example.com?b=2"
-  Mojo::URL->new('http://example.com?a=1&b=2')->query([a => undef]);
+  Mojo::URL->new('http://example.com?a=1&b=2')->query({a => undef});
 
   # "http://example.com?a=1&b=2&a=2&c=3"
-  Mojo::URL->new('http://example.com?a=1&b=2')->query({a => 2, c => 3});
+  Mojo::URL->new('http://example.com?a=1&b=2')->query([a => 2, c => 3]);
 
 =head2 to_abs
 

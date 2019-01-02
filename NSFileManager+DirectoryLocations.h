@@ -25,14 +25,17 @@
 // DirectoryLocations is a set of global methods for finding the fixed location
 // directoriess.
 //
+
+NS_ASSUME_NONNULL_BEGIN
+
 @interface NSFileManager (DirectoryLocations)
 
-- (NSString *)findOrCreateDirectory:(NSSearchPathDirectory)searchPathDirectory
-	inDomain:(NSSearchPathDomainMask)domainMask
-	appendPathComponent:(NSString *)appendComponent
-	error:(NSError **)errorOut;
-- (NSString *)applicationSupportDirectory;
-
-@property (readonly) NSString *applicationSupportDirectory;
+- (nullable NSString *)findOrCreateDirectory:(NSSearchPathDirectory)searchPathDirectory
+                           inDomain:(NSSearchPathDomainMask)domainMask
+                appendPathComponent:(NSString *)appendComponent
+                              error:(NSError **)errorOut;
+- (nullable NSString *)applicationSupportDirectory;
 
 @end
+
+NS_ASSUME_NONNULL_END

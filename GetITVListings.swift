@@ -21,12 +21,11 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
     
     func supportPath(_ fileName: String) -> String
     {
-        if let applicationSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.absoluteURL {
-            let historyFile = applicationSupportURL.appendingPathComponent("Get iPlayer Automator").appendingPathComponent(fileName)
-            return historyFile.path
+        if let applicationSupportDir = FileManager.default.applicationSupportDirectory() {
+            return applicationSupportDir.appending("/").appending(fileName)
         }
         
-        return NSHomeDirectory().appending("/").appending(fileName)
+        return NSHomeDirectory().appending("/.get_iplayer/").appending(fileName)
     }
     
     var programmesFilePath: String {
@@ -54,6 +53,8 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
         let myCache = URLCache(memoryCapacity: 16384, diskCapacity: 268435456, diskPath: cachePath)
         defaultConfigObject.urlCache = myCache
         defaultConfigObject.requestCachePolicy = .useProtocolCachePolicy
+        defaultConfigObject.timeoutIntervalForResource = 30
+        defaultConfigObject.timeoutIntervalForRequest = 30
         mySession = URLSession(configuration: defaultConfigObject, delegate: self, delegateQueue: OperationQueue.main)
         
         /* Load in all shows for itv.com */
@@ -66,6 +67,10 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
     func requestShowListing() {
         if let aString = URL(string: "https://www.itv.com/hub/shows") {
             mySession?.dataTask(with: aString, completionHandler: {(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Void in
+                if let error = error {
+                    let errorMessage = "GetITVListings (Error(\(error))): Unable to retreive show listings from ITV"
+                    self.logger?.add(toLog: errorMessage)
+                }
                 guard let data = data else {
                     return
                 }
