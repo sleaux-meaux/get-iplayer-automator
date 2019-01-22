@@ -59,12 +59,7 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
         
         /* Load in all shows for itv.com */
         myOpQueue.maxConcurrentOperationCount = 1
-        myOpQueue.addOperation {
-            self.requestShowListing()
-        }
-    }
-    
-    func requestShowListing() {
+
         if let aString = URL(string: "https://www.itv.com/hub/shows") {
             mySession?.dataTask(with: aString, completionHandler: {(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Void in
                 if let error = error {
@@ -75,108 +70,233 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
                     return
                 }
                 
-                if !self.createProgrammes(data: data) {
-                    self.endOfRun()
+                if self.createProgrammes(data: data) {
+                    self.myQueueSize = self.programmes.count
+                    self.myQueueLeft = self.myQueueSize
+
+                    if self.myQueueSize >= 0 {
+                        for todayProgramme in self.programmes {
+                            self.myOpQueue.addOperation {
+                                self.requestProgrammeEpisodes(todayProgramme)
+                            }
+                        }
+                    } else {
+                        self.writeEpisodeCacheFile()
+                    }
+                    
                 } else {
-                    self.mergeAllProgrammes()
+                    self.endOfRun()
                 }
             }).resume()
         }
     }
     
-    func requestProgrammeEpisodes(_ myProgramme: ProgrammeData?) {
-        /* Get all episodes for the programme name identified in MyProgramme */
-        usleep(1)
-        if let aURL = myProgramme?.programmeURL, let aURL1 = URL(string: aURL) {
-            mySession?.dataTask(with: aURL1, completionHandler: {(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Void in
-                if let error = error {
-                    let errorMessage = "GetITVListings (Error(\(error))): Unable to retreive programme episodes for \(myProgramme?.programmeURL ?? "missing!")"
-                    self.logger?.add(toLog: errorMessage)
-                    //                    NSAlert(messageText: "GetITVShows: Unable to retreive programme episode data", defaultButton: "OK", alternateButton: nil, otherButton: nil, informativeTextWithFormat: "If problem persists, please submit a bug report and include the log file.").runModal()
-                } else if let data = data {
-                    self.processProgrammeEpisodesData(myProgramme, pageData: data)
-                }
-            }).resume()
-        }
-        return
-    }
-    
-    func processProgrammeEpisodesData(_ aProgramme: ProgrammeData?, pageData: Data) {
+    func createProgrammes(data: Data) -> Bool {
+        /* Scan itv.com/shows to create full listing of programmes (not episodes) that are available today */
+        programmes.removeAll()
         
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mmZ"
-        dateFormatter.timeZone = TimeZone(secondsFromGMT:0)
-        
-        var programURL: URL? = nil
-        if let programURLString = aProgramme?.programmeURL {
-            programURL = URL(string: programURLString)?.deletingLastPathComponent()
-        }
+        if let showsPage = try? HTML(html: data, encoding: .utf8) {
+            let shows = showsPage.xpath("//a[@class='complex-link']")
             
-        if let showPageHTML = try? HTML(html: pageData, encoding: .utf8) {
-            let showElements = showPageHTML.xpath("//a[@data-content-type='episode']")
-
-            for show in showElements {
-                var dateAiredUTC: Date? = nil
-                let dateTimeString = show.at_xpath(".//@datetime")?.text
-                
-                if let dateTimeString = dateTimeString{
-                    dateAiredUTC = dateFormatter.date(from: dateTimeString)
-                }
-
-                let description = show.at_xpath(".//p[@class='tout__summary theme__subtle']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                var episodeNumber: Int? = 0
-                if let episode = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target ']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let episodeScanner = Scanner(string: episode)
-                    episodeScanner.scanString("Episode ")
-                    episodeNumber = episodeScanner.scanInteger()
+            for show in shows {
+                guard let showPage = show.at_xpath("@href")?.text,
+                    let showPageURL = URL(string: showPage) else {
+                        continue
                 }
                 
-                var seriesNumber: Int? = 0
-                if let series = show.at_xpath(".//h2[@class='module__heading']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let seriesScanner = Scanner(string: series)
-                    seriesScanner.scanString("Series ")
-                    seriesNumber = seriesScanner.scanInteger()
-                }
-
-                var productionID: String? = ""
-                var showURL: URL? = nil
-                if let showURLString = show.at_xpath("@href")?.text {
-                    showURL = URL(string: showURLString)
-                    productionID = showURL?.lastPathComponent
+                let showName: String?
+                let numberEpisodes: Int
+                let productionID: String?
+                let showPageURLString: String?
+                
+                showPageURLString = showPage
+                productionID = showPageURL.lastPathComponent
+                
+                showName = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
+                
+                if let numberEpisodesString = show.at_xpath(".//p[@class='tout__meta theme__meta']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    let scanner = Scanner(string: numberEpisodesString)
+                    numberEpisodes = scanner.scanInteger() ?? 0
+                } else {
+                    numberEpisodes = 0
                 }
                 
-//                print("Program: \(aProgramme?.programmeName ?? "")")
-//                print("Show URL: \(showURL?.absoluteString ?? "")")
-//                print("Episode number: \(episodeNumber ?? 0)")
-//                print("Series number: \(seriesNumber ?? 0)")
-//                print("productionID: \(productionID ?? "")")
-//                print("Date aired: \(dateTimeString ?? "Unknown")")
-//                print("=================")
-                
-                // Make sure the URL matches the show listing -- ITV likes to sneak other shows on a program page.
-                if let showURLBase = showURL?.deletingLastPathComponent(), showURLBase.absoluteString == programURL?.absoluteString {
+                if numberEpisodes > 0 {
+                    // Check for duplicate show listings.
+                    let existingProgram = programmes.filter { $0.productionId == productionID }
                     
-                    /* Create ProgrammeData Object and store in array */
-                    let myProgramme = ProgrammeData(name: aProgramme?.programmeName ?? "", pid: productionID ?? "", url: showURL?.absoluteString ?? "", numberEpisodes: aProgramme?.numberEpisodes ?? 0, timeDateLastAired: dateAiredUTC, programDescription: description ?? "", thumbnailURL: "")
-                    
-                    myProgramme.addProgrammeSeriesInfo(seriesNumber ?? 0, aEpisodeNumber: episodeNumber ?? 0)
-                    self.episodes.append(myProgramme)
+                    if existingProgram.count == 0 {
+                        let myProgramme = ProgrammeData(name: showName ?? "<None>", pid: productionID ?? "", url: showPageURLString ?? "", numberEpisodes: numberEpisodes, timeDateLastAired: currentTime, programDescription:"", thumbnailURL: "")
+                        programmes.append(myProgramme)
+                    }
                 }
             }
         }
         
-        let increment = Double(myQueueSize - 1) > 0 ? 100.0 / Double(myQueueSize - 1) : 100.0
-        AppController.shared().itvProgressIndicator.increment(by: increment)
+        /* Now we sort the programmes and drop the duplicates */
+        if programmes.count == 0 {
+            self.logger?.add(toLog: "No programmes found on www.itv.com/hub/shows")
+            showAlert(message: "No programmes were found on www.itv.com/hub/shows",
+                      informative: "Try again later. If the problem persists please file a bug.")
+            return false
+        }
+        
+        programmes.sort { $0.programmeName < $1.programmeName }
+        return true
+    }
 
-        /* Check if there is any outstanding work before processing the carried forward programme list */
-        myQueueLeft -= 1
-        if (myQueueLeft == 0) {
-            processEpisodes()
+    func requestProgrammeEpisodes(_ myProgramme: ProgrammeData) {
+        /* Get all episodes for the programme name identified in MyProgramme */
+        if let url = URL(string: myProgramme.programmeURL) {
+            mySession?.dataTask(with: url, completionHandler: {(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Void in
+                self.processEpisodesForProgram(myProgramme, pageData: data, error: error)
+            }).resume()
         }
     }
     
-    func processEpisodes() {
+    func dateForTimeString(_ time:String) -> Date? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mmZ"
+        dateFormatter.timeZone = TimeZone(secondsFromGMT:0)
+        return dateFormatter.date(from: time)
+    }
+        
+    func processEpisodeElement(program: ProgrammeData, show: Kanna.XMLElement) {
+        let dateTimeString = show.at_xpath(".//@datetime")?.text
+        
+        var dateAiredUTC: Date? = nil
+        if let dateTimeString = dateTimeString {
+            dateAiredUTC = dateForTimeString(dateTimeString)
+        }
+        
+        let programURL = URL(string: program.programmeURL)?.deletingLastPathComponent()
+
+        let description = show.at_xpath(".//p[@class='tout__summary theme__subtle']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        var episodeNumber: Int? = 0
+        if let episode = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target ']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            let episodeScanner = Scanner(string: episode)
+            episodeScanner.scanString("Episode ")
+            episodeNumber = episodeScanner.scanInteger()
+        }
+        
+        var seriesNumber: Int? = 0
+        if let series = show.at_xpath(".//h2[@class='module__heading']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            let seriesScanner = Scanner(string: series)
+            seriesScanner.scanString("Series ")
+            seriesNumber = seriesScanner.scanInteger()
+        }
+        
+        var productionID: String? = ""
+        var showURL: URL? = nil
+        if let showURLString = show.at_xpath("@href")?.text {
+            showURL = URL(string: showURLString)
+            productionID = showURL?.lastPathComponent
+        }
+        
+//        print("Program: \(program.programmeName)")
+//        print("Show URL: \(showURL?.absoluteString ?? "")")
+//        print("Episode number: \(episodeNumber ?? 0)")
+//        print("Series number: \(seriesNumber ?? 0)")
+//        print("productionID: \(productionID ?? "")")
+//        print("Date aired: \(dateTimeString ?? "Unknown")")
+//        print("=================")
+        
+        // Make sure the URL matches the show listing -- ITV likes to sneak other shows on a program page.
+        if let showURLBase = showURL?.deletingLastPathComponent(), showURLBase.absoluteString == programURL?.absoluteString {
+            
+            /* Create ProgrammeData Object and store in array */
+            let myProgramme = ProgrammeData(name: program.programmeName, pid: productionID ?? "", url: showURL?.absoluteString ?? "", numberEpisodes: program.numberEpisodes , timeDateLastAired: dateAiredUTC, programDescription: description ?? "", thumbnailURL: "")
+            
+            myProgramme.addProgrammeSeriesInfo(seriesNumber ?? 0, aEpisodeNumber: episodeNumber ?? 0)
+            self.episodes.append(myProgramme)
+        }
+
+    }
+    
+    func processSingleEpisode(_ aProgramme: ProgrammeData, html: HTMLDocument) {
+        let showDataElement = html.xpath("//script[@id=\"json-ld\"]")
+
+        if let nodeContent = showDataElement.first?.text {
+            let data = nodeContent.data(using: String.Encoding.utf8, allowLossyConversion: false)!
+            
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: []) as! [String: AnyObject]
+                if let description = json["description"] as? String {
+                    aProgramme.programDescription = description
+                }
+                
+                if let url = json["@id"] as? String {
+                    aProgramme.programmeURL = url
+                    aProgramme.productionId = URL(string: url)?.lastPathComponent ?? ""
+                }
+                
+                if let showName = json["partOfSeries"]?["name"] as? String {
+                    aProgramme.programmeName = showName
+                }
+                
+                if let thumbnailURL = json["image"]?["url"] as? String {
+                    aProgramme.thumbnailURL = thumbnailURL
+                }
+            } catch let error as NSError {
+                print("Failed to load: \(error.localizedDescription)")
+            }
+        }
+        
+        if let dateElement = html.at_xpath(".//li[@class='episode-info__meta-item episode-info__meta-item--broadcast']") {
+            if let dateTimeElement = dateElement.at_xpath(".//@datetime")?.text {
+                aProgramme.timeDateLastAired = dateForTimeString(dateTimeElement)
+            }
+        }
+        
+        let myProgramme = ProgrammeData(name: aProgramme.programmeName, pid: aProgramme.productionId, url: aProgramme.programmeURL, numberEpisodes: 1 , timeDateLastAired: aProgramme.timeDateLastAired, programDescription: aProgramme.programDescription, thumbnailURL: aProgramme.thumbnailURL)
+        
+        self.episodes.append(myProgramme)
+    }
+
+    fileprivate func operationCompleted() {
+        let increment = Double(myQueueSize - 1) > 0 ? 100.0 / Double(myQueueSize - 1) : 100.0
+        AppController.shared().itvProgressIndicator.increment(by: increment)
+        
+        /* Check if there is any outstanding work before processing the carried forward programme list */
+        myQueueLeft -= 1
+        if (myQueueLeft == 0) {
+            writeEpisodeCacheFile()
+        }
+    }
+    
+    func processEpisodesForProgram(_ aProgramme: ProgrammeData, pageData: Data?, error: Error?) {
+        if let error = error {
+            let errorMessage = "GetITVListings (Error(\(error))): Unable to retreive programme episodes for \(aProgramme.programmeURL)"
+            self.logger?.add(toLog: errorMessage)
+            operationCompleted()
+            return
+        }
+
+        guard let pageData = pageData else {
+            operationCompleted()
+            return
+        }
+        
+        if let showPageHTML = try? HTML(html: pageData, encoding: .utf8) {
+            let episodeElements = showPageHTML.xpath("//a[@data-content-type=\"episode\"]")
+
+            if episodeElements.count > 0 {
+                // This is a series, so create a ProgrammeData for each episode.
+                for episode in episodeElements {
+                    processEpisodeElement(program: aProgramme, show: episode)
+                }
+            } else {
+                // This page is itself a program (most likely a movie.)
+                // Extract its metadata and create a ProgrammeData for it.
+                processSingleEpisode(aProgramme, html: showPageHTML)
+            }
+        }
+        
+        operationCompleted()
+    }
+    
+    func writeEpisodeCacheFile() {
         self.logger?.add(toLog: "GetITVShows (Info): Episodes: \(episodes.count) Today Programmes: \(programmes.count) ")
         
         /* First we update datetimeadded for the carried forward programmes */
@@ -279,78 +399,5 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
         self.logger?.add(toLog: "GetITVShows: Update Finished")
     }
     
-    func mergeAllProgrammes() {
-        
-        myQueueSize = programmes.count
-        myQueueLeft = myQueueSize
-
-        for todayProgramme in programmes {
-            myOpQueue.addOperation {
-                self.requestProgrammeEpisodes(todayProgramme)
-            }
-        }
-        
-        if myQueueSize < 2 {
-            AppController.shared()?.itvProgressIndicator.increment(by: 100.0)
-        }
-        
-        if myQueueSize == 0 {
-            processEpisodes()
-        }
-    }
-    
-    func createProgrammes(data: Data) -> Bool {
-        /* Scan itv.com/shows to create full listing of programmes (not episodes) that are available today */
-        programmes.removeAll()
-        
-        if let showsPage = try? HTML(html: data, encoding: .utf8) {
-            let shows = showsPage.xpath("//a[@class='complex-link']")
-            
-            for show in shows {
-                guard let showPage = show.at_xpath("@href")?.text,
-                    let showPageURL = URL(string: showPage) else {
-                    continue
-                }
-                
-                let showName: String?
-                let numberEpisodes: Int
-                let productionID: String?
-                let showPageURLString: String?
-
-                showPageURLString = showPage
-                productionID = showPageURL.lastPathComponent
-
-                showName = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                if let numberEpisodesString = show.at_xpath(".//p[@class='tout__meta theme__meta']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let scanner = Scanner(string: numberEpisodesString)
-                    numberEpisodes = scanner.scanInteger() ?? 0
-                } else {
-                    numberEpisodes = 0
-                }
-
-                if numberEpisodes > 0 {
-                    // Check for duplicate show listings.
-                    let existingProgram = programmes.filter { $0.productionId == productionID }
-                    
-                    if existingProgram.count == 0 {
-                        let myProgramme = ProgrammeData(name: showName ?? "<None>", pid: productionID ?? "", url: showPageURLString ?? "", numberEpisodes: numberEpisodes, timeDateLastAired: currentTime, programDescription:"", thumbnailURL: "")
-                        programmes.append(myProgramme)
-                    }
-                }
-            }
-        }
-        
-        /* Now we sort the programmes and drop the duplicates */
-        if programmes.count == 0 {
-            self.logger?.add(toLog: "No programmes found on www.itv.com/hub/shows")
-            showAlert(message: "No programmes were found on www.itv.com/hub/shows",
-                      informative: "Try again later. If the problem persists please file a bug.")
-            return false
-        }
-        
-        programmes.sort { $0.programmeName < $1.programmeName }
-        return true
-    }
 }
 
