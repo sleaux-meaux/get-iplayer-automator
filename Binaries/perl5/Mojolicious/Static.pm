@@ -7,7 +7,7 @@ use Mojo::Date;
 use Mojo::File 'path';
 use Mojo::Home;
 use Mojo::Loader qw(data_section file_is_binary);
-use Mojo::Util qw(encode md5_sum);
+use Mojo::Util qw(encode md5_sum trim);
 
 # Bundled files
 my $PUBLIC = Mojo::Home->new(Mojo::Home->new->mojo_lib_dir)
@@ -72,7 +72,8 @@ sub is_fresh {
   return undef unless (my $since = $req_headers->if_modified_since) || $match;
 
   # If-None-Match
-  return undef if $match && ($etag // $res_headers->etag // '') ne $match;
+  $etag //= $res_headers->etag // '';
+  return undef if $match && !grep { trim($_) eq $etag } split ',', $match;
 
   # If-Modified-Since
   return !!$match unless ($last //= $res_headers->last_modified) && $since;
@@ -81,20 +82,16 @@ sub is_fresh {
 
 sub serve {
   my ($self, $c, $rel) = @_;
-
   return undef unless my $asset = $self->file($rel);
-  my $headers = $c->res->headers;
-  return !!$self->serve_asset($c, $asset) if $headers->content_type;
-
-  # Content-Type
-  my $types = $c->app->types;
-  my $type = $rel =~ /\.(\w+)$/ ? $types->type($1) : undef;
-  $headers->content_type($type || $types->type('txt'));
+  $c->app->types->content_type($c, {file => $rel});
   return !!$self->serve_asset($c, $asset);
 }
 
 sub serve_asset {
   my ($self, $c, $asset) = @_;
+
+  # Content-Type
+  $c->app->types->content_type($c, {file => $asset->path}) if $asset->is_file;
 
   # Last-Modified and ETag
   my $res = $c->res;

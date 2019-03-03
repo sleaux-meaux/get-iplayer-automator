@@ -134,9 +134,7 @@ sub to {
   if ($shortcut) {
 
     # Application
-    if (ref $shortcut || $shortcut =~ /^[\w:]+$/) {
-      $defaults{app} = $shortcut;
-    }
+    if (ref $shortcut || $shortcut =~ /^[\w:]+$/) { $defaults{app} = $shortcut }
 
     # Controller and action
     elsif ($shortcut =~ /^([\w\-:]+)?\#(\w+)?$/) {
@@ -614,6 +612,9 @@ intermediate destination, takes the same arguments as L</"any"> (except for the
 HTTP methods to match, which are not available). See
 L<Mojolicious::Guides::Tutorial> and L<Mojolicious::Guides::Routing> for more
 information.
+
+  # Longer version
+  $r->any('/:foo' => sub {...})->inline(1);
 
   # Intermediate destination and prefix shared between two routes
   my $auth = $r->under('/user')->to('user#auth');
