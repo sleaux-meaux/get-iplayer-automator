@@ -54,7 +54,9 @@ experimental to explicitly exclude them from these rules. This gives us the
 necessary freedom to ensure a healthy future for L<Mojolicious>. So, as long as
 you are not using anything marked experimental, untested or undocumented, you
 can always count on backwards compatibility, everything else would be
-considered a bug.
+considered a bug. However, to completely avoid any risk of accidental breakage,
+we do recommend following current best practices for version pinning with
+L<Carton> for production setups.
 
 =head2 Why not split up Mojolicious into many smaller distributions?
 
@@ -66,18 +68,19 @@ already have done in the past.
 =head2 Where can i discuss my patches for Mojolicious?
 
 We'd love to discuss your contributions to L<Mojolicious> on our official IRC
-channel C<#mojo> on C<irc.perl.org>
-(L<chat now!|https://chat.mibbit.com/?channel=%23mojo&server=irc.perl.org>).
+channel C<#mojo> on C<irc.freenode.net> (L<chat
+now!|https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?>).
 
 =head2 Which versions of Perl are supported by Mojolicious?
 
 First of all, you need to be aware that according to the L<perlpolicy>, only
 the two most recent stable release series of Perl are supported by the
-community and receive bug fixes, which are currently 5.26.x and 5.24.x.
+community and receive bug fixes, which are currently 5.28.x and 5.26.x.
 L<Mojolicious> follows this model and fully supports these two release series.
-In addition we will also keep the distribution installable up to a certain
-legacy version that we deem worthy of supporting, but not specifically optimize
-for it, this is currently 5.10.1.
+In addition we will also keep the distribution installable (and that means
+passing all tests) up to a certain legacy version that the core team deems
+worthy of supporting, but not specifically optimize for it, this is currently
+5.10.1.
 
 =head2 How well is Windows supported by Mojolicious?
 
@@ -259,7 +262,7 @@ weakened.
 =head1 MORE
 
 You can continue with L<Mojolicious::Guides> now or take a look at the
-L<Mojolicious wiki|http://github.com/kraih/mojo/wiki>, which contains a lot more
+L<Mojolicious wiki|http://github.com/mojolicious/mojo/wiki>, which contains a lot more
 documentation and examples by many different authors.
 
 =head1 SUPPORT
@@ -267,7 +270,7 @@ documentation and examples by many different authors.
 If you have any questions the documentation might not yet answer, don't
 hesitate to ask on the
 L<mailing list|http://groups.google.com/group/mojolicious> or the official IRC
-channel C<#mojo> on C<irc.perl.org>
-(L<chat now!|https://chat.mibbit.com/?channel=%23mojo&server=irc.perl.org>).
+channel C<#mojo> on C<irc.freenode.net> (L<chat
+now!|https://kiwiirc.com/nextclient/#irc://irc.freenode.net/mojo?nick=guest-?>).
 
 =cut
