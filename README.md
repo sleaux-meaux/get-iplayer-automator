@@ -11,7 +11,7 @@ The current release is 1.16.1. [Download it here.](https://github.com/Ascoware/g
 
 Latest release
 ##### 1.16.1
-Get iPlayer Automator is now ready for use on macOS Catalina (10.15)! TV programs will be added to TV.app, and radio programs will be added to Music.app. Due to a bug in macOS shows tagged as podcasts will open in Music.app but can't be played. Also, because it was ported from iOS, Podcasts.app is not scriptable and cannot accept externally created m4a files. As a result, if you use the "Tag radio programmes as podcasts" your only option right now is to use QuickTime Player.app, or turn off this checkbox and play them through Music.app. We hope this bug is fixed in a future version of macOS.
+Get iPlayer Automator is now ready for use on macOS Catalina (10.15)! TV programs will be added to TV.app, and radio programs will be added to Music.app. Due to a bug in macOS shows tagged as podcasts will open in Music.app but can't be played. Also, because it was ported from iOS, Podcasts.app is not scriptable and cannot accept externally created m4a files. As a result, if you use the "Tag radio programmes as podcasts" your only option right now is to use QuickTime Player.app, or turn off this checkbox and play them through Music.app. We hope this bug is fixed in a future version of macOS. 
 
 ##### 1.16
 Updated to get_iplayer 3.22. See the release notes for more information.
