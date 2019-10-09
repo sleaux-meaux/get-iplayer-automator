@@ -1,7 +1,7 @@
 ## What is it?
 The goal of Get iPlayer Automator is to allow iTunes and your Mac to become the hub for your British Television experience regardless of where in the world you are. Get iPlayer Automator allows you to download and watch BBC and ITV shows on your Mac. Series-Link/PVR functionality ensures you will never miss your favourite shows. Programmes are fully tagged and added to iTunes automatically upon completion. It is simple and easy to use, and runs on any machine running Mac OS X 10.9 or later. And since the shows are in iTunes, it is extremely easy to transfer them to your iPod, iPhone, or Apple TV allowing you to enjoy your shows on the go or on your television.
 
-The current release is 1.16. [Download it here.](https://github.com/Ascoware/get-iplayer-automator/releases)
+The current release is 1.16.1. [Download it here.](https://github.com/Ascoware/get-iplayer-automator/releases)
 
 
 ### What if I find a bug?
@@ -10,6 +10,9 @@ The current release is 1.16. [Download it here.](https://github.com/Ascoware/get
 #### Version history
 
 Latest release
+##### 1.16.1
+Get iPlayer Automator is now ready for use on macOS Catalina (10.15)! TV programs will be added to TV.app, and radio programs will be added to Music.app. Due to a bug in macOS shows tagged as podcasts will open in Music.app but can't be played. Also, because it was ported from iOS, Podcasts.app is not scriptable and cannot accept externally created m4a files. As a result, if you use the "Tag radio programmes as podcasts" your only option right now is to use QuickTime Player.app, or turn off this checkbox and play them through Music.app. We hope this bug is fixed in a future version of macOS.
+
 ##### 1.16
 Updated to get_iplayer 3.22. See the release notes for more information.
 Most notably, BBC program metadata caching will work after the 19-August bbc.co.uk iPlayer web site changes.
