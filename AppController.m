@@ -150,10 +150,10 @@ NewProgrammeHistory           *sharedHistoryController;
     //Initialize Arguments
     NSString *getiPlayerInstallation = [[NSString alloc] initWithString:[NSBundle mainBundle].bundlePath];
     getiPlayerInstallation = [getiPlayerInstallation stringByAppendingString:@"/Contents/Resources/get_iplayer"];
-    _extraBinariesPath = [getiPlayerInstallation stringByAppendingPathComponent:@"bin"];
-    _getiPlayerPath = [getiPlayerInstallation stringByAppendingString:@"/perl-darwin-2level/bin/get_iplayer"];
-    _perlBinaryPath = [getiPlayerInstallation stringByAppendingString:@"/perl-darwin-2level/bin/perl"];
-    _perlEnvironmentPath = [getiPlayerInstallation stringByAppendingString:@"/perl-darwin-2levelbin"];
+    _extraBinariesPath = [getiPlayerInstallation stringByAppendingPathComponent:@"utils/bin"];
+    _getiPlayerPath = [getiPlayerInstallation stringByAppendingPathComponent:@"perl/bin/get_iplayer"];
+    _perlBinaryPath = [getiPlayerInstallation stringByAppendingPathComponent:@"perl/bin/perl"];
+    _perlEnvironmentPath = [getiPlayerInstallation stringByAppendingPathComponent:@"perl/lib"];
     
     _runScheduled=NO;
 
@@ -758,6 +758,7 @@ NewProgrammeHistory           *sharedHistoryController;
                             show.status = @"Available";
                             show.lastBroadcastString = p.lastBroadcastString;
                             show.lastBroadcast = p.lastBroadcast;
+                            show.radio = p.radio;
                             foundMatch=YES;
                             break;
                         }
@@ -1443,9 +1444,6 @@ NewProgrammeHistory           *sharedHistoryController;
             envVariableDictionary[@"HOME"] = (@"~").stringByExpandingTildeInPath;
             envVariableDictionary[@"PERL_UNICODE"] = @"AS";
 
-            NSString *perlPath = [[NSBundle mainBundle] resourcePath];
-            perlPath = [perlPath stringByAppendingPathComponent:@"get_iplayer"];
-            perlPath = [perlPath stringByAppendingPathComponent:@"bin"];
             envVariableDictionary[@"PATH"] = _perlEnvironmentPath;
             autoRecordTask.environment = envVariableDictionary;
             [autoRecordTask launch];
