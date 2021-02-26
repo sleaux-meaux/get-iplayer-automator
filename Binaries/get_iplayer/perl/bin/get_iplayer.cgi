@@ -26,8 +26,8 @@ exec "$(dirname "$0")"/perl -x "$0" "$@"
 # License: GPLv3 (see LICENSE.txt)
 #
 
-my $VERSION = 3.26;
-my $VERSION_TEXT = "3.26.1-$^O";
+my $VERSION = 3.27;
+my $VERSION_TEXT = "3.27.0-$^O";
 $VERSION_TEXT = sprintf("v%.2f", $VERSION) unless $VERSION_TEXT;
 
 use CGI qw(-utf8 :all);
@@ -349,7 +349,7 @@ if ( $opt_cmdline->{port} > 0 ) {
 			print $se "$data{_method}: $request{URL}\n";
 
 			# Is this the CGI or some other file request?
-			if ( $request{URL} =~ /^\/?(iplayer|recordings_delete|playlist.*|genplaylist.*|opml|)\/?$/ ) {
+			if ( $request{URL} =~ /^\/?(recordings_delete|playlist.+|genplaylist.+|)\/?$/ ) {
 				# remove any vars that might affect the CGI
 				#%ENV = ();
 				@ARGV = ();
@@ -482,57 +482,52 @@ sub run_cgi {
 	my $action = $cgi->param( 'ACTION' ) || $request_uri;
 	# Strip the leading '/' to get the action
 	$action =~ s|^\/||g;
-	# rewrite short-form backwards compatible URIs
-	# e.g. http://server/stream?args -> http://server/get_iplayer.cgi?ACTION=stream&args
 
-	# Stream from get_iplayer STDOUT (optionally transcoding if required)
-	if ( $action eq 'direct' ) {
+	# Stream from file (optionally transcoding if required)
+	if ( $action eq 'direct' || $action eq 'playdirect' ) {
 		binmode $fh, ':raw';
 		# get filename first
 		my $progtype = $cgi->param( 'PROGTYPES' );
 		my $pid = $cgi->param( 'PID' );
-		# If the modes list f set to nothing
-		#my $mode = $opt->{MODES}->{current} || $opt->{MODES}->{default};
 		my $mode = $cgi->param( 'MODES' );
 		my $filename = get_direct_filename( $pid, $mode, $progtype );
-		# Use OUTTYPE for transcoding if required - get output ext
-		# $cgi->param('STREAMTYPE') || $cgi->param('OUTTYPE') || 'flv' if $action eq 'playlistdirect';
 		my $ext = lc( $cgi->param('STREAMTYPE') || $cgi->param( 'OUTTYPE' ) );
-		# Remove fileprefix
-		$ext =~ s/^.*\.//g;
 		# get file source ext
 		my $src_ext = $filename;
 		$src_ext =~ s/^.*\.//g;
 		# Stream mime types
 		my %mimetypes = (
-			wav 	=> 'audio/x-wav',
+			aac	=> 'audio/aac',
+			adts	=> 'audio/aac',
 			flac	=> 'audio/x-flac',
-			aac	=> 'audio/mpeg',
-			m4a	=> 'audio/mpeg',
+			m4a	=> 'audio/mp4',
 			mp3 	=> 'audio/mpeg',
-			rm	=> 'audio/x-pn-realaudio',
+			oga => 'audio/vorbis',
+			wav 	=> 'audio/x-wav',
+			asf	=> 'video/x-ms-asf',
+			avi	=> 'video/avi',
+			flv	=> 'video/x-flv',
+			matroska => 'video/x-matroska',
+			mkv => 'video/x-matroska',
 			mov 	=> 'video/quicktime',
 			mp4	=> 'video/mp4',
-			avi	=> 'video/x-flv',
-			flv	=> 'video/x-flv',
-			asf	=> 'video/x-ms-asf',
+			mpegts	=> 'video/MP2T',
+			rm	=> 'audio/x-pn-realaudio',
+			ts	=> 'video/MP2T',
 		);
 
-		# default recipies
-		# Disable transcoding if none is specified as OUTTYPE/STREAMTYPE
+		# default recipes
 		my $notranscode = 0;
+		# Disable transcoding if none is specified as OUTTYPE/STREAMTYPE
+		# Or if streaming MP4 via play direct
 		if ( $ext =~ /none/i ) {
-			print $se "INFO: Transcoding disabled (OUTTYPE=none)\n";
-			$ext = $src_ext;
-			$notranscode = 1;
-
-		# cannot stream mp4/avi so transcode to flv
-		# Add types here which you want re-muxed into flv
-		#if ( $src_ext =~ m{^(mp4|avi|mov|mp3|aac)$} && ! $ext ) {
-		} elsif ( $src_ext =~ m{^(mp4|m4a|aac|avi|mov)$} && ! $ext ) {
+				print $se "INFO: Transcoding disabled (OUTTYPE=$ext)\n";
+				$ext = $src_ext;
+				$notranscode = 1;
+		# Else known types re-mux into flv unless play direct
+		} elsif ( $action ne 'playdirect' && ! $ext && $src_ext =~ m{^(m4a|mp4|mp3|aac|avi|mkv|mov|ts)$} ) {
 			$ext = 'flv';
-
-		# Else Default to no transcoding
+		# Else default to no transcoding
 		} elsif ( ! $ext ) {
 			$ext = $src_ext;
 		}
@@ -557,34 +552,7 @@ sub run_cgi {
 		}
 
 	# Get a playlist for a specified 'PROGTYPES'
-	} elsif ( $action eq 'playlist' || $action eq 'playlistdirect' || $action eq 'playlistfiles' ) {
-		# Output headers
-		my $headers = $cgi->header( -type => 'audio/x-mpegurl' );
-
-		# Send the headers to the browser
-		print $se "\r\nHEADERS:\n$headers\n"; #if $opt_cmdline->{debug};
-		print $fh $headers;
-
-		# determine output type
-		my $outtype = $cgi->param('OUTTYPE') || 'flv';
-		$outtype = $cgi->param('STREAMTYPE') || $cgi->param('OUTTYPE') || 'flv' if $action eq 'playlistdirect';
-
-		# ( host, outtype, modes, progtype, bitrate, search, searchfields, action )
-		print $fh create_playlist_m3u_single( $request_host, $outtype, $opt->{MODES}->{current}, $opt->{PROGTYPES}->{current} , $cgi->param('BITRATE') || '', $opt->{SEARCH}->{current}, $opt->{SEARCHFIELDS}->{current} || 'name', $opt->{VERSIONLIST}->{current}, $action );
-
-	# Get a playlist for a specified 'PROGTYPES'
-	} elsif ( $action eq 'opml' ) {
-		# Output headers
-		my $headers = $cgi->header( -type => 'text/xml' );
-
-		# Send the headers to the browser
-		print $se "\r\nHEADERS:\n$headers\n"; #if $opt_cmdline->{debug};
-		print $fh $headers;
-		# ( host, outtype, modes, type, bitrate )
-		print $fh get_opml( $request_host, $cgi->param('OUTTYPE') || 'flv', $opt->{MODES}->{current}, $opt->{PROGTYPES}->{current} , $cgi->param('BITRATE') || '', $opt->{SEARCH}->{current}, $cgi->param('LIST') || '' );
-
-	# Get a playlist for a selected progs in form
-	} elsif ( $action eq 'genplaylist' || $action eq 'genplaylistdirect' || $action eq 'genplaylistfile' ) {
+	} elsif ( $action eq 'playlistdirect' || $action eq 'playlistfiles' ) {
 		# Output headers
 		my $headers = $cgi->header( -type => 'audio/x-mpegurl' );
 		# To save file
@@ -595,7 +563,25 @@ sub run_cgi {
 		print $fh $headers;
 
 		# determine output type
-		my $outtype = $cgi->param('OUTTYPE') || 'flv';
+		my $outtype = $cgi->param('OUTTYPE');
+		$outtype = $cgi->param('STREAMTYPE') || $cgi->param('OUTTYPE') if $action eq 'playlistdirect';
+
+		# ( host, outtype, modes, progtype, bitrate, search, searchfields, action )
+		print $fh create_playlist_m3u_single( $request_host, $outtype, $opt->{MODES}->{current}, $opt->{PROGTYPES}->{current} , $cgi->param('BITRATE') || '', $opt->{SEARCH}->{current}, $opt->{SEARCHFIELDS}->{current} || 'name', $opt->{VERSIONLIST}->{current}, $action );
+
+	# Get a playlist for a selected progs in form
+	} elsif ( $action eq 'genplaylistdirect' || $action eq 'genplaylistfile' ) {
+		# Output headers
+		my $headers = $cgi->header( -type => 'audio/x-mpegurl' );
+		# To save file
+		#my $headers = $cgi->header( -type => 'audio/x-mpegurl', -attachment => 'get_iplayer.m3u' );
+
+		# Send the headers to the browser
+		print $se "\r\nHEADERS:\n$headers\n"; #if $opt_cmdline->{debug};
+		print $fh $headers;
+
+		# determine output type
+		my $outtype = $cgi->param('OUTTYPE');
 		$outtype = $cgi->param('STREAMTYPE') || $cgi->param('OUTTYPE') if $action eq 'genplaylistdirect';
 
 		# ( host, outtype, modes, bitrate, action )
@@ -804,72 +790,41 @@ sub stream_file {
 
 sub build_ffmpeg_args {
 		my ( $filename, $mimetype, $ext, $abitrate, $vsize, $vfr, $src_ext ) = ( @_ );
-		my @cmd_aopts;
-		my $src_mimetype = $mimetype;
-		# mime type override for audio->flv conversion
-		if ( lc( $src_ext ) =~ m{^(aac|m4a|mp3)$} ) {
-			$src_mimetype = 'audio/mpeg';
-		}
-
-		if ( $abitrate =~ m{^\d+$} ) {
-			if ( lc( $ext ) eq 'flv' ) {
-				push @cmd_aopts, ( '-ar', '44100', '-ab', "${abitrate}k" );
-			} else {
-				push @cmd_aopts, ( '-ab', "${abitrate}k" );
-			}
-		} else {
-			if ( lc( $ext ) eq 'flv' ) {
-				push @cmd_aopts, ( '-ar', '44100' );
-			}
-			# cannot copy code if for example we have an aac stream output as WAV (e.g. squeezebox flashaac)
-			#push @cmd_aopts, ( '-acodec', 'copy' );
-		}
-
 		my @cmd;
+		my @cmd_vopts;
+		my @cmd_aopts;
+		if ( $abitrate =~ m{^\d+$} ) {
+			push @cmd_aopts, ( '-ab', "${abitrate}k" );
+		}
+		if ( lc( $ext ) eq 'flv' ) {
+			push @cmd_aopts, ( '-ar', '44100' );
+		}
 		# If conversion is necessary
 		# Video
-		if ( $src_mimetype =~ m{^video} ) {
-			my @cmd_vopts;
-
+		if ( $mimetype =~ m{^video} && $filename !~ m{\.(aac|m4a|mp3)$} ) {
 			# Apply video size
 			push @cmd_vopts, ( '-s', "${vsize}" ) if $vsize =~ m{^\d+x\d+$};
-
 			# Apply video framerate - caveat - bitrate defaults to 200k if only vfr is set
-			push @cmd_vopts, ( '-r', $vfr ) if $vfr =~ m{^\d$};
-
-			# -sameq is bad
-			## Apply sameq if framerate only and no bitrate
-			#push @cmd_vopts, '-sameq' if $vfr =~ m{^\d$} && $vsize !~ m{^\d+x\d+$};
-
+			push @cmd_vopts, ( '-r', $vfr ) if $vfr =~ m{^\d+$};
 			# Add in the codec if we are transcoding and not remuxing the stream
 			if ( @cmd_vopts ) {
 				push @cmd_vopts, ( '-vcodec', 'libx264' );
 			} else {
 				push @cmd_vopts, ( '-vcodec', 'copy' );
 			}
-
-			@cmd = (
-				$opt_cmdline->{ffmpeg},
-				#'-f', $src_ext, # not required?
-				'-i', $filename,
-				@cmd_aopts,
-				@cmd_vopts,
-				'-f', $ext,
-				'-',
-			);
 		# Audio
 		} else {
-			@cmd = (
-				$opt_cmdline->{ffmpeg},
-				#'-f', $src_ext, # not required?
-				'-i', $filename,
-				'-vn',
-				@cmd_aopts,
-				'-ac', 2,
-				'-f', $ext,
-				'-',
-			);
+				push @cmd_vopts, ( '-vn' );
 		}
+		@cmd = (
+			$opt_cmdline->{ffmpeg},
+			'-i', $filename,
+			@cmd_vopts,
+			@cmd_aopts,
+			'-ac', 2,
+			'-f', $ext,
+			'-',
+		);
 		print $se "DEBUG: Command args: ".(join ' ', @cmd)."\n";
 		return @cmd;
 }
@@ -882,14 +837,8 @@ sub create_playlist_m3u_single {
 	$outtype =~ s/^.*\.//g;
 
 	my $searchterm = $search;
-	# this is already a wildcard default regex...
-	if ( $search eq '.*' ) {
-		$searchterm = '.*';
-	# if it's a URL then bypass regex stuff
-	} elsif ( $search =~ m{^http} ) {
-		$searchterm = $search;
 	# make search term regex friendly
-	} else {
+	if ( $searchterm ne '.*' && $searchterm !~ m{^http} ) {
 		$searchterm =~ s|([\/\.\?\+\-\*\^\(\)\[\]\{\}])|\\$1|g;
 	}
 
@@ -901,12 +850,9 @@ sub create_playlist_m3u_single {
 		'--nocopyright',
 		'--expiry=999999999',
 		'--webrequest',
-		get_iplayer_webrequest_args( 'nopurge=1', "type=$type", 'listformat=ENTRY|<pid>|<name>|<episode>|<desc>|<filename>|<mode>', "fields=$searchfields", "search=$searchterm", "versionlist=$versionlist" ),
+		get_iplayer_webrequest_args( 'history=1', 'skipdeleted=1', 'nopurge=1', "type=$type", 'listformat=ENTRY|<pid>|<name>|<episode>|<desc>|<filename>|<mode>', "fields=$searchfields", "search=$searchterm", "versionlist=$versionlist" ),
 	);
-	# Only add history search if the request is of this type or is a PlayFile from localfiles type
-	if ( ( $request eq 'playlistfiles' || $request eq 'playlistdirect' ) && ! ( $search =~ m{^/} && $searchfields eq 'pid' ) ) {
-		push @cmd, '--history', '--skipdeleted';
-	}
+
 	my @out = get_cmd_output( @cmd );
 
 	push @playlist, "#EXTM3U\n";
@@ -925,27 +871,15 @@ sub create_playlist_m3u_single {
 		# playlist with direct streaming for files through webserver
 		if ( $request eq 'playlistdirect' ) {
 			next if ! ( $pid && $type && $mode );
-			$url = build_url_direct( $request_host, $type, $pid, $mode, basename( $filename ), $opt->{STREAMTYPE}->{current}, $opt->{HISTORY}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} );
-
-		# If pid is actually a filename then use it cos this is a local file type programme
-		} elsif ( $request eq 'playlistfiles' && $pid =~ m{^/} ) {
-			next if ! $pid;
-			$url = search_absolute_path( $pid ) if $pid;
+			$url = build_url_direct( $request_host, $type, $pid, $mode, $outtype, $opt->{STREAMTYPE}->{current}, $opt->{HISTORY}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} );
 
 		# playlist with local files
 		} elsif ( $request eq 'playlistfiles' ) {
 			next if ! $filename;
 			$url = search_absolute_path( $filename );
 
-		# playlist of proxied urls for streaming online prog via web server
-		} else {
-			next if ! ( $type && $pid );
-			my $suffix = "${pid}.${outtype}";
-			$url = build_url_stream( $request_host, $type, $pid, $mode || $modes, $suffix, $opt->{STREAMTYPE}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} );
 		}
 
-		# Format required, e.g.
-		##EXTINF:-1,BBC Radio - BBC Radio One (High Quality Stream)
 		push @playlist, "#EXTINF:-1,$type - $channel - $name - $episode - $desc";
 		push @playlist, "$url\n";
 
@@ -963,11 +897,6 @@ sub create_playlist_m3u_multi {
 
 	my @record = ( $cgi->param( 'PROGSELECT' ) );
 
-	# If a URL was specified by the User (assume auto mode list is OK):
-	if ( $opt->{URL}->{current} =~ m{^https?://} ) {
-		push @record, "$opt->{PROGTYPES}->{current}|$opt->{URL}->{current}|$opt->{URL}->{current}|-";
-	}
-
 	# Create m3u from all selected 'TYPE|PID|NAME|EPISODE|MODE|CHANNEL' entries in the PVR
 	for (@record) {
 		my $url;
@@ -981,35 +910,15 @@ sub create_playlist_m3u_multi {
 
 		# playlist with local files
 		} elsif ( $request eq 'genplaylistfile' ) {
-			# If pid is actually a filename then use it cos this is a local file type programme
-			if ( $pid =~ m{^/} ) {
-				my $filename = search_absolute_path( $pid );
-				$url = $filename if $filename;
-			} else {
-				# Lookup filename (add it if defined - even if relative)
-				# check for -f $filename if you want to exclude files that cannot be found
-				my $filename = get_direct_filename( $pid, $mode, $type );
-				$url = $filename if $filename;
-			}
-
-		# Uncomment this to make all playlists local for localfiles types
-		# If pid is actually a filename then use it cos this is a local file type programme
-		#} elsif ( $pid =~ m{^/} ) {
-		#	my $filename = search_absolute_path( $pid );
-		#	$url = $filename if $filename;
-
-		# playlist of proxied urls for streaming online prog via web server
-		} else {
-			my $suffix = "${pid}.${outtype}";
-			$url = build_url_stream( $request_host, $type, $pid, $mode || $opt->{MODES}->{current}, $suffix, $opt->{STREAMTYPE}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} );
+			# Lookup filename (add it if defined - even if relative)
+			# check for -f $filename if you want to exclude files that cannot be found
+			my $filename = get_direct_filename( $pid, $mode, $type );
+			$url = $filename if -f $filename;
 		}
 
 		# Skip empty urls
 		next if ! $url;
 
-		# Format required, e.g.
-		##EXTINF:-1,BBC Radio - BBC Radio One (High Quality Stream)
-		#http://localhost:1935/stream?PID=liveradio:bbc_radio_one&MODES=flashaac&OUTTYPE=bbc_radio_one.wav
 		push @playlist, "#EXTINF:-1,$type - $channel - $name - $episode";
 		push @playlist, "$url\n";
 
@@ -1020,137 +929,17 @@ sub create_playlist_m3u_multi {
 
 
 
-sub get_opml {
-	my ( $request_host, $outtype, $modes, $type, $bitrate, $search, $list ) = ( @_ );
-	my @playlist;
-	$outtype =~ s/^.*\.//g;
-
-	#<?xml version="1.0" encoding="UTF-8"?>
-	#<opml version="1.1">
-	#  <head>
-	#    <title>Grateful Dead - 1995-07-09-Chicago, IL</title>
-	#  </head>
-	#  <body>
-	#    <outline URL="http://www.archive.org/.../gd1995-07-09d1t01_vbr.mp3" bitrate="200" source="Soundboard" text="Touch Of Grey" type="audio" />
-	#    <outline URL="http://www.archive.org/.../gd1995-07-09d1t02_vbr.mp3" bitrate="203" source="Soundboard" text="Little Red Rooster" type="audio" />
-	#    <outline URL="http://www.archive.org/.../gd1995-07-09d1t03_vbr.mp3" bitrate="194" source="Soundboard" text="Lazy River Road" type="audio" />
-	#  </body>
-	#</opml>
-
-	print $se "INFO: Getting playlist for type '$type' using modes '$modes', bitrate '$bitrate', search='$search' and list '$list'\n";
-
-	# Header
-	push @playlist, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<opml version=\"1.1\">";
-
-	# Programmes
-	if (! $list) {
-
-		# Header
-		push @playlist, "\t<head>\n\t\t\n\t</head>";
-		push @playlist, "\t<body>";
-
-		# Extract and rewrite into playlist format
-		my @out = get_cmd_output(
-			$opt_cmdline->{getiplayer},
-			'--encoding-locale=UTF-8',
-			'--encoding-console-out=UTF-8',
-			'--nocopyright',
-			'--expiry=999999999',
-			'--webrequest',
-			get_iplayer_webrequest_args( 'nopurge=1', "type=$type", 'listformat=<pid>|<name>|<episode>|<desc>', "search=$search" ),
-		);
-		for ( grep !/^(Added:|Matches|$)/, @out ) {
-			chomp();
-			# Strip unprinatble chars
-			s/(.)/(ord($1) > 127) ? "" : $1/egs;
-			my ($pid, $name, $episode, $desc) = (split /\|/)[0,1,2,3];
-			next if ! ( $pid && $name );
-			push @playlist, "\t\t<outline URL=\"".encode_entities( build_url_stream( $request_host, $type, $pid, $modes, $outtype ) )."\"  bitrate=\"${bitrate}\" source=\"get_iplayer\" title=\"".encode_entities("$name - $episode - $desc")."\" text=\"".encode_entities("$name - $episode - $desc")."\" type=\"audio\" />";
-		}
-
-	# Top-level Menu
-	} elsif ( lc($list) eq 'menu' ) {
-		my %menu = (
-			'BBC iPlayer Radio Listen Again'=> "${request_host}?ACTION=opml&PROGTYPES=radio&LIST=channel",
-		);
-
-		# Header
-		push @playlist, "\t<head title=\"GetIplayer\">\n\t\t\n\t</head>";
-		push @playlist, "\t<body>";
-		for my $item ( sort keys %menu ) {
-			my $item_url = $menu{ $item };
-			#http://localhost:1935/opml?PROGTYPES=<type>SEARCH=bbc+radio+1&MODES=${modes}&OUTTYPE=a.wav
-			push @playlist, "\t\t<outline URL=\"".encode_entities( $item_url )."\" text=\"".encode_entities( "$item" )."\" />";
-		}
-
-	# Channels/Names etc
-	} elsif ($list) {
-
-		# Header
-		push @playlist, "\t<head>\n\t\t\n\t</head>";
-		push @playlist, "\t<body>";
-
-		# Extract and rewrite into playlist format
-		my @out = get_cmd_output(
-			$opt_cmdline->{getiplayer},
-			'--encoding-locale=UTF-8',
-			'--encoding-console-out=UTF-8',
-			'--nocopyright',
-			'--expiry=999999999',
-			'--webrequest',
-			get_iplayer_webrequest_args( 'nopurge=1', "type=$type", "list=$list", "channel=$search" ),
-		);
-		for ( grep !/^(Added:|Matches|$)/, @out ) {
-			my $suffix;
-			chomp();
-			# Strip unprinatble chars
-			s/(.)/(ord($1) > 127) ? "" : $1/egs;
-			next if ! m{^.+\(\d+\)$};
-			my $item = $_;
-			s/\s*\(\d+\)$//g;
-			my $itemregex = '^'.$_.'$';
-			# URL encode it
-			$itemregex =~ s/([^A-Za-z0-9])/sprintf("%%%02X", ord($1))/seg;
-			# Stateful addition of search terms
-			$suffix = '&LIST=name' if $list eq 'channel';
-			# Format required, e.g.
-			#http://localhost:1935/opml?PROGTYPES=<type>SEARCH=bbc+radio+1&MODES=${modes}&OUTTYPE=a.wav
-			push @playlist, "\t\t<outline URL=\"".encode_entities("${request_host}?ACTION=opml&PROGTYPES=${type}&SEARCH=${itemregex}${suffix}&MODES=${modes}&OUTTYPE=a.wav")."\" text=\"".encode_entities("$item")."\" title=\"".encode_entities("$item")."\" type=\"playlist\" />";
-		}
-
-	}
-
-	# Footer
-	push @playlist, "\t</body>\n</opml>";
-
-	return join ("\n", @playlist);
-}
-
-
-
 ### Playlist URL builders
 sub build_url_direct {
-	my ( $request_host, $progtypes, $pid, $modes, $outtype, $streamtype, $history, $bitrate, $vsize, $vfr, $versionlist ) = ( @_ );
+	my ( $request_host, $progtypes, $pid, $modes, $outtype, $streamtype, $history, $bitrate, $vsize, $vfr, $versionlist, $action ) = ( @_ );
 	# Sanity check
 	#print $se "DEBUG: building direct playback request using:  PROGTYPES=${progtypes}  PID=${pid}  MODES=${modes}  OUTTYPE=${outtype}\n";
 	# CGI::escape
 	$_ = CGI::escape($_) for ( $progtypes, $pid, $modes, $outtype, $streamtype, $history, $bitrate, $vsize );
 	#print $se "DEBUG: building direct playback request using:  PROGTYPES=${progtypes}  PID=${pid}  MODES=${modes}  OUTTYPE=${outtype}  BITRATE=${bitrate}  VSIZE=${vsize}  VFR=${vfr}\n";
 	# Build URL
-	return "${request_host}?ACTION=direct&PROGTYPES=${progtypes}&PID=${pid}&MODES=${modes}&HISTORY=${history}&OUTTYPE=${outtype}&STREAMTYPE=${streamtype}&BITRATE=${bitrate}&VSIZE=${vsize}&VFR=${vfr}&VERSIONLIST=${versionlist}";
-}
-
-
-# "${request_host}?ACTION=stream&PROGTYPES=${type}&PID=${pid}&MODES=${modes}&OUTTYPE=${suffix}";
-sub build_url_stream {
-	my ( $request_host, $progtypes, $pid, $modes, $outtype, $streamtype, $bitrate, $vsize, $vfr, $versionlist ) = ( @_ );
-	# Sanity check
-	#print $se "DEBUG: building stream playback request using:  PROGTYPES=${progtypes}  PID=${pid}  MODES=${modes}  OUTTYPE=${outtype}\n";
-	# CGI::escape
-	$_ = CGI::escape($_) for ( $progtypes, $pid, $modes, $outtype, $streamtype, $bitrate, $vsize, $vfr );
-	#print $se "DEBUG: building stream playback request using:  PROGTYPES=${progtypes}  PID=${pid}  MODES=${modes}  OUTTYPE=${outtype}\n";
-	# Build URL
-	return "${request_host}?ACTION=stream&PROGTYPES=${progtypes}&PID=${pid}&MODES=${modes}&OUTTYPE=${outtype}&STREAMTYPE=${streamtype}&BITRATE=${bitrate}&VSIZE=${vsize}&VFR=${vfr}&VERSIONLIST=${versionlist}";
+	$action ||= 'direct';
+	return "${request_host}?ACTION=$action&PROGTYPES=${progtypes}&PID=${pid}&MODES=${modes}&HISTORY=${history}&OUTTYPE=${outtype}&STREAMTYPE=${streamtype}&BITRATE=${bitrate}&VSIZE=${vsize}&VFR=${vfr}&VERSIONLIST=${versionlist}";
 }
 
 
@@ -1969,7 +1758,7 @@ sub show_info {
 	}
 	# Show thumb if one exists
 	$prog{$pid}->{thumbnail} ||= DEFAULT_THUMBNAIL;
-	print $fh img( { -class=>'action', -src=>$prog{$pid}->{thumbnail} } ) if $prog{$pid}->{thumbnail};
+	print $fh img( { -height=>216, -class=>'action', -src=>$prog{$pid}->{thumbnail} } ) if $prog{$pid}->{thumbnail};
 	# Set optional output dir for pvr queue if set
 	my $outdir;
 	$outdir = '&OUTPUT='.CGI::escape("$opt->{OUTPUT}->{current}") if $opt->{OUTPUT}->{current};
@@ -1998,33 +1787,14 @@ sub show_info {
 # If the PID is a filename then filename is still searched using PID and TYPE
 sub get_direct_filename {
 	my ( $pid, $mode, $type ) = ( @_ );
-	my $out;
-	my @html;
-	my %prog;
-	my $pidisfile;
 	my $history = 1;
 
 	print $se "DEBUG: Looking up filename for MODE=$mode TYPE=$type PID=$pid\n";
 
-	# set this flag if required and unset history if pid is a file
-	if ( -f $pid ) {
-		print $se "DEBUG: PID is a valid filename\n";
-		$pidisfile = 1;
-		$history = 0;
-	}
-
-	# Skip if not defined or, if pid is a file and no type defined
-	if ( $pidisfile && ! $type ) {
-		print $se "ERROR: Cannot lookup filename for PID which is a filename if type is not set\n";
-		return '';
-	}
-	if ( ( ! $pidisfile ) && ! ( $pid && $mode && $type ) ) {
+	if ( ! ( $pid && $mode && $type ) ) {
 		print $se "ERROR: Cannot lookup filename unless PID, MODE and TYPE are set\n";
 		return '';
 	}
-
-	# make the pid regex friendly
-	$pid =~ s|([\/\.\?\+\-\*\^\(\)\[\]\{\}])|\\$1|g;
 
 	# Get the 'filename' entry from --history --info for this pid
 	my @cmd = (
@@ -2043,11 +1813,7 @@ sub get_direct_filename {
 	# Extract the filename
 	my $match = ( grep /^filename:/, @cmdout )[0];
 	my $filename;
-	if ( $pidisfile ) {
-		$filename = $1 if $match =~ m{^filename: (\/.+?)\|<filename>\|<mode>\s*$};
-	} else {
-		$filename = $1 if $match =~ m{^filename: .+?\|\s*(.+?)\|$mode\s*$};
-	}
+	$filename = $1 if $match =~ m{^filename: .+?\|\s*(.+?)\|$mode\s*$};
 	if ( $filename && $opt_cmdline->{encodinglocalefs} !~ /UTF-?8/i ) {
 		$filename = encode($opt_cmdline->{encodinglocalefs}, $filename, sub { '' });
 	}
@@ -2688,39 +2454,34 @@ sub search_progs {
 		}
 
 		# Format of PROGSELECT: TYPE|PID|NAME|EPISODE|MODE|CHANNEL
-		push @row, td( {-class=>$search_class},
-			checkbox(
-				-class		=> $search_class,
-				-name		=> 'PROGSELECT',
-				-label		=> '',
-				-value 		=> "$prog{$pid}->{type}|$pid|$prog{$pid}->{name}|$prog{$pid}->{episode}|$prog{$pid}->{mode}|$prog{$pid}->{channel}",
-				-checked	=> 0,
-				-override	=> 1,
-			)
-		);
-		# Record and stream links
+		if ( $opt->{HISTORY}->{current} && ! -f $prog{$pid}->{filename} ) {
+			push @row, td( {-class=>$search_class} );
+		} else {
+			push @row, td( {-class=>$search_class},
+					checkbox(
+						-class		=> $search_class,
+						-name		=> 'PROGSELECT',
+						-label		=> '',
+						-value 		=> "$prog{$pid}->{type}|$pid|$prog{$pid}->{name}|$prog{$pid}->{episode}|$prog{$pid}->{mode}|$prog{$pid}->{channel}",
+						-checked	=> 0,
+						-override	=> 1,
+					)
+			);
+		}
+		# Record links
 
 		my $links;
-		# 'Play'
-		# Search mode with filename as pid
-		if ( $pid =~ m{^/} ) {
-			if ( -f $pid ) {
-				# Play
- 				$links .= a( { -class=>$search_class, -title=>"Play from file on web server", -href=>build_url_playlist( '', 'playlist', 'pid', $pid, $opt->{MODES}->{current} || $default_modes, $prog{$pid}->{type}, basename( $pid ) , $opt->{STREAMTYPE}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} ) }, 'Play' ).'<br />';
-				# PlayFile
-				$links .= a( { -id=>'nowrap', -class=>$search_class, -title=>"Play from local file", -href=>build_url_playlist( '', 'playlistfiles', 'pid', $pid, $prog{$pid}->{mode}, $prog{$pid}->{type}, undef, undef ) }, 'Play File' ).'<br />';
-				# PlayDirect
-				$links .= a( { -id=>'nowrap', -class=>$search_class, -title=>"Stream file into browser", -href=>build_url_direct( '', $prog{$pid}->{type}, $pid, $prog{$pid}->{mode}, $opt->{STREAMTYPE}->{current}, $opt->{STREAMTYPE}->{current}, $opt->{HISTORY}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} ) }, 'Play Direct' ).'<br />';
-			}
 		# History mode
-		} elsif ( $opt->{HISTORY}->{current} ) {
-			if ( $opt->{HIDEDELETED}->{current} || -f $prog{$pid}->{filename} ) {
+		if ( $opt->{HISTORY}->{current} ) {
+			if ( -f $prog{$pid}->{filename} ) {
 				# Play (Play Remote)
-				$links .= a( { -id=>'nowrap', -class=>$search_class, -title=>"Play from file on web server", -href=>build_url_playlist( '', 'playlistdirect', 'pid', $pid, $prog{$pid}->{mode}, $prog{$pid}->{type}, 'flv', 'flv', $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} ) }, 'Play' ).'<br />';
+				$links .= a( { -id=>'nowrap', -target=>'_blank', -class=>$search_class, -title=>"Stream from file on web server", -href=>build_url_playlist( '', 'playlistdirect', 'pid', $pid, $prog{$pid}->{mode}, $prog{$pid}->{type}, $opt->{STREAMTYPE}->{current}, $opt->{STREAMTYPE}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} ) }, 'Play' ).'<br />';
 				# PlayFile
-				$links .= a( { -id=>'nowrap', -class=>$search_class, -title=>"Play from local file", -href=>build_url_playlist( '', 'playlistfiles', 'pid', $pid, $prog{$pid}->{mode}, $prog{$pid}->{type}, undef ) }, 'Play File' ).'<br />';
+				$links .= a( { -id=>'nowrap', -target=>'_blank', -class=>$search_class, -title=>"Play from local file", -href=>build_url_playlist( '', 'playlistfiles', 'pid', $pid, $prog{$pid}->{mode}, $prog{$pid}->{type}, undef ) }, 'Play File' ).'<br />';
 				# PlayDirect - depends on browser support
-				$links .= a( { -id=>'nowrap', -class=>$search_class, -title=>"Stream file into browser", -href=>build_url_direct( '', $prog{$pid}->{type}, $pid, $prog{$pid}->{mode}, $opt->{STREAMTYPE}->{current}, $opt->{STREAMTYPE}->{current}, $opt->{HISTORY}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current} ) }, 'Play Direct' ).'<br />';
+				if ( $prog{$pid}->{filename} =~ m{\.(m4a|mp4|mp3)$} ) {
+					$links .= a( { -id=>'nowrap', -target=>'_blank', -class=>$search_class, -title=>"Stream file into browser", -href=>build_url_direct( '', $prog{$pid}->{type}, $pid, $prog{$pid}->{mode}, $opt->{STREAMTYPE}->{current}, $opt->{STREAMTYPE}->{current}, $opt->{HISTORY}->{current}, $opt->{BITRATE}->{current}, $opt->{VSIZE}->{current}, $opt->{VFR}->{current}, $opt->{VERSIONLIST}->{current}, 'playdirect' ) }, 'Play Direct' ).'<br />';
+				}
 			}
 		# Search mode
 		} else {
@@ -2748,9 +2509,9 @@ sub search_progs {
 				if ( $prog{$pid}->{$_} !~ m{^https?://} ) {
 					$prog{$pid}->{$_} = DEFAULT_THUMBNAIL;
 				}
-				push @row, td( {-class=>$search_class}, a( { -title=>"Open original web URL", -class=>$search_class, -href=>$prog{$pid}->{web}, -target => "_new" }, img( { -class=>$search_class, -height=>40, -src=>$prog{$pid}->{$_} } ) ) );
+				push @row, td( {-class=>$search_class}, a( { -title=>"Open original web URL", -class=>$search_class, -href=>$prog{$pid}->{web}, -target => "_blank" }, img( { -class=>$search_class, -height=>40, -src=>$prog{$pid}->{$_} } ) ) );
 			} elsif ( /^web$/ ) {
-					push @row, td( {-class=>$search_class}, a( { -title=>"Open original web URL", -class=>$search_class, -href=>$prog{$pid}->{$_}, -target => "_new" }, 'Open URL' ) );
+					push @row, td( {-class=>$search_class}, a( { -title=>"Open original web URL", -class=>$search_class, -href=>$prog{$pid}->{$_}, -target => "_blank" }, 'Open URL' ) );
 			# Calculate the seconds difference between epoch_now and epoch_datestring and convert back into array_time
 			} elsif ( /^timeadded$/ ) {
 				my @t = gmtime( $time - $prog{$pid}->{$_} );
@@ -3046,7 +2807,8 @@ sub pagetrail {
 	my ( $page, $pagesize, $count, $trailsize ) = ( @_ );
 
 	# How many pages
-	my $pages = int( $count / $pagesize ) + 1;
+	my $pages = int( $count / $pagesize );
+	$pages++ if $count % $pagesize;
 	# If we request a page that is too high
 	$page = $pages if $page > $pages;
 	# Calc first and last programme numbers
@@ -3256,7 +3018,7 @@ sub form_header {
 			li( { -class=>$class->{recordings} }, a( { -class=>'nav', -title=>'History search page', -onClick => "BackupFormVars(formheader); formheader.NEXTPAGE.value='search_history'; formheader.submit(); RestoreFormVars(formheader);" }, 'Recordings' ) ).
 			li( { -class=>$class->{pvrlist} }, a( { -class=>'nav', -title=>'List all saved PVR searches', -onClick => "BackupFormVars(formheader); formheader.NEXTPAGE.value='pvr_list'; formheader.submit(); RestoreFormVars(formheader);" }, 'PVR List' ) ).
 			li( { -class=>$class->{pvrrun} }, a( { -class=>'nav', -title=>'Run the PVR now - wait for the PVR to complete', -onClick => "BackupFormVars(formheader); formheader.NEXTPAGE.value='pvr_run'; formheader.target='_newtab_pvrrun'; formheader.submit(); RestoreFormVars(formheader); formheader.target='';" }, 'Run PVR' ) ).
-			li( { -class=>'nav_tab' }, a( { -class=>'nav', -title=>'Show help and instructions', -href => "https://github.com/get-iplayer/get_iplayer/wiki/webpvr", -target => "_new" }, 'Help' ) )
+			li( { -class=>'nav_tab' }, a( { -class=>'nav', -title=>'Show help and instructions', -href => "https://github.com/get-iplayer/get_iplayer/wiki/webpvr", -target => "_newtab_help" }, 'Help' ) )
 		),
 	);
 	print $fh hidden( -name => 'AUTOPVRRUN', -value => $opt->{AUTOPVRRUN}->{current}, -override => 1 );
@@ -3615,10 +3377,10 @@ sub process_params {
 		save	=> 1,
 	};
 
-	my %vsize_labels = ( ''=>'Native', '1280x720'=>'1280x720', '832x468'=>'832x468', '640x360'=>'640x360', '512x288'=>'512x288', '480x272'=>'480x272', '320x176'=>'320x176', '176x96'=>'176x96' );
+	my %vsize_labels = ( ''=>'Native', '1280x720'=>'1280x720', '960x540'=>'960x540', '832x468'=>'832x468', '704x396'=>'704x396', '640x360'=>'640x360', '512x288'=>'512x288', '448x252'=>'448x252', '384x216'=>'384x216', '256x144'=>'256x144', '192x108'=>'192x108' );
 	$opt->{VSIZE} = {
 		title	=> 'Remote Streaming Video Size', # Title
-		tooltip	=> "Video size '<width>x<height>' to transcode remotely played files - leave blank for native size", # Tooltip
+		tooltip	=> "Video size '<width>x<height>' to transcode remotely played files - specify 'Native' for native size", # Tooltip
 		webvar	=> 'VSIZE', # webvar
 		type	=> 'popup', # type
 		label	=> , \%vsize_labels, # labels
@@ -3646,16 +3408,15 @@ sub process_params {
 		default => '',
 		save	=> 1,
 	};
-
-	my %streamtype_labels = ( ''=>'Auto', 'none'=>'Disable Transcoding', 'flv'=>'Flash Video (flv)', 'mov'=>'Quicktime (mov)', 'asf'=>'Advanced Streaming Format (asf)', 'avi'=>'AVI', 'mp3'=>'MP3 (Audio Only)', 'aac'=>'AAC (Audio Only)', 'wav'=>'WAV (Audio Only)', 'flac'=>'FLAC (Audio Only)' );
+	my %streamtype_labels = ( ''=>'Auto', 'none'=>'Disable Transcoding', 'flv'=>'Flash Video (H.264/MP3)', 'mpegts'=>'MPEG Transport Stream (H.264/MP2)', 'matroska'=>'Matroska (H.264/Vorbis)', 'asf'=>'Advanced Systems Format (H.264/WMA)', 'mp3'=>'MP3 (Audio Only)', 'adts'=>'AAC (Audio Only)', 'oga'=>'Vorbis (Audio Only)', 'wav'=>'WAV (Audio Only)', 'flac'=>'FLAC (Audio Only)' );
 	$opt->{STREAMTYPE} = {
 		title	=> "Remote Streaming type", # Title
-		tooltip	=> "Force the output to be this type when using 'Play Remote' for 'PlayDirect' streaming(e.g. flv, mov). Specify 'none' to disable transcoding/remuxing.  Leave blank for auto-detection", # Tooltip
+		tooltip	=> "Force the output to be this type when using 'Play' streaming. Specify 'Native' to disable transcoding/remuxing.", # Tooltip
 		webvar	=> 'STREAMTYPE', # webvar
 		type	=> 'popup', # type
 		label	=> , \%streamtype_labels, # labels
 		default	=> '', # default
-		value	=> [ '', 'none', 'flv', 'mov', 'asf', 'avi', 'mp3', 'aac', 'wav', 'flac' ], # values
+		value	=> [ '', 'none', 'flv', 'mpegts', 'matroska', 'asf', 'mp3', 'adts', 'oga', 'wav', 'flac' ], # values
 		onChange=> "form1.submit();",
 		save	=> 1,
 	};
