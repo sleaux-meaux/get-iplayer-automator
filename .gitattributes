@@ -1,0 +1,4 @@
+Binaries/get_iplayer/utils/bin filter=lfs diff=lfs merge=lfs -text
+Binaries/youtube-dl filter=lfs diff=lfs merge=lfs -text
+ffmpeg filter=lfs diff=lfs merge=lfs -text
+*.a filter=lfs diff=lfs merge=lfs -text
