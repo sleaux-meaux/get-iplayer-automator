@@ -498,6 +498,7 @@ static NSString *FORCE_RELOAD = @"ForceReload";
         _updatingITVIndex = true;
         [self.itvProgressIndicator startAnimation:self];
         self.itvProgressIndicator.doubleValue = 0.0;
+        self.itvProgressIndicator.indeterminate = YES;
         [self.itvProgressIndicator setHidden:false];
         [_itvProgressText setHidden:false];
 

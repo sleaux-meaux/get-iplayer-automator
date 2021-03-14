@@ -8,15 +8,23 @@ import Foundation
 import Kanna
 import SwiftyJSON
 
-public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, URLSessionDataDelegate {
-    var myQueueSize: Int = 0
-    var myQueueLeft: Int = 0
-    var mySession: URLSession?
+public class GetITVShows: NSObject {
+    var showQueueSize = 0
+    var showQueueLeft = 0
+    var episodeQueueSize = 0
+    var episodeQueueLeft = 0
+    let mySession: URLSession = {
+        let defaultConfigObject = URLSessionConfiguration.ephemeral
+        defaultConfigObject.timeoutIntervalForResource = 90
+        defaultConfigObject.timeoutIntervalForRequest = 90
+        return URLSession(configuration: defaultConfigObject, delegate: nil, delegateQueue: OperationQueue.main)
+    }()
     
-    var programmes = [ProgrammeData]()
-    var episodes = [ProgrammeData]()
+    var programmeURLs = [URL]()
+    var episodeURLs = [URL]()
+    var episodes = [Programme]()
+
     var getITVShowRunning = false
-    let currentTime = Date()
     var logger: LogController?
     var myOpQueue = OperationQueue()
     
@@ -29,13 +37,9 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
         return NSHomeDirectory().appending("/.get_iplayer/").appending(fileName)
     }
     
-    var programmesFilePath: String {
-        return supportPath("itvprograms.gia")
-    }
-    
     public override init() {
         super.init()
-        getITVShowRunning = false
+        myOpQueue.maxConcurrentOperationCount = 1
     }
     
     @objc public func itvUpdate(newLogger: LogController) {
@@ -46,24 +50,13 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
         logger = newLogger
         logger?.add(toLog: "GetITVShows: ITV Cache Update Starting ")
         getITVShowRunning = true
-        myQueueSize = 0
-        episodes = []
-        
-        /* Create the NUSRLSession */
-        let defaultConfigObject = URLSessionConfiguration.default
-        let cachePath: String = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("/itvloader.cache").path
-        let myCache = URLCache(memoryCapacity: 16384, diskCapacity: 268435456, diskPath: cachePath)
-        defaultConfigObject.urlCache = myCache
-        defaultConfigObject.requestCachePolicy = .useProtocolCachePolicy
-        defaultConfigObject.timeoutIntervalForResource = 30
-        defaultConfigObject.timeoutIntervalForRequest = 30
-        mySession = URLSession(configuration: defaultConfigObject, delegate: self, delegateQueue: OperationQueue.main)
-        
-        /* Load in all shows for itv.com */
-        myOpQueue.maxConcurrentOperationCount = 1
+        programmeURLs = []
+        showQueueSize = 0
+        episodeURLs = []
+        episodeQueueSize = 0
 
         if let aString = URL(string: "https://www.itv.com/hub/shows") {
-            mySession?.dataTask(with: aString) {(_ data: Data?, _ response: URLResponse?, _ error: Error?) -> Void in
+            mySession.dataTask(with: aString) {(data, _, error) -> Void in
                 if let error = error {
                     let errorMessage = "GetITVListings (Error: \(error.localizedDescription)): Unable to retreive show listings from ITV"
                     self.logger?.add(toLog: errorMessage)
@@ -74,14 +67,14 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
                 }
                 
                 if self.createProgrammes(data: data) {
-                    self.myQueueSize = self.programmes.count
-                    self.myQueueLeft = self.myQueueSize
+                    self.showQueueSize = self.programmeURLs.count
+                    self.showQueueLeft = self.showQueueSize
 
-                    if self.myQueueSize >= 0 {
-                        for todayProgramme in self.programmes {
-                            self.myOpQueue.addOperation {
-                                self.requestProgrammeEpisodes(todayProgramme)
-                            }
+                    if self.showQueueSize >= 0 {
+                        for programURL in self.programmeURLs {
+//                            self.myOpQueue.addOperation {
+                                self.requestProgrammeEpisodes(programUrl: programURL)
+//                            }
                         }
                     } else {
                         self.writeEpisodeCacheFile()
@@ -96,7 +89,7 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
     
     func createProgrammes(data: Data) -> Bool {
         /* Scan itv.com/shows to create full listing of programmes (not episodes) that are available today */
-        programmes.removeAll()
+        programmeURLs.removeAll()
         
         if let showsPage = try? HTML(html: data, encoding: .utf8) {
             let shows = showsPage.xpath("//a[@class='complex-link']")
@@ -106,210 +99,107 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
                     let showPageURL = URL(string: showPage) else {
                         continue
                 }
-                
-                let showName: String?
-                let numberEpisodes: Int
-                let productionID: String?
-                let showPageURLString: String?
-                
-                showPageURLString = showPage
-                productionID = showPageURL.lastPathComponent
-                
-                showName = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-                
-                if let numberEpisodesString = show.at_xpath(".//p[@class='tout__meta theme__meta']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
-                    let scanner = Scanner(string: numberEpisodesString)
-                    numberEpisodes = scanner.scanInteger() ?? 0
-                } else {
-                    numberEpisodes = 0
-                }
-                
-                if numberEpisodes > 0 {
-                    // Check for duplicate show listings.
-                    let existingProgram = programmes.filter { $0.productionId == productionID }
-                    
-                    if existingProgram.count == 0 {
-                        let myProgramme = ProgrammeData(name: showName ?? "<None>", pid: productionID ?? "", url: showPageURLString ?? "", numberEpisodes: numberEpisodes, timeDateLastAired: currentTime, programDescription:"", thumbnailURL: "", episode: "")
-                        programmes.append(myProgramme)
-                    }
+
+                let productionID = showPageURL.lastPathComponent
+
+                // Check for duplicate show listings.
+                let existingProgram = programmeURLs.filter { $0.lastPathComponent == productionID }
+
+                if existingProgram.count == 0 {
+                    programmeURLs.append(showPageURL)
                 }
             }
         }
-        
+
         /* Now we sort the programmes and drop the duplicates */
-        if programmes.count == 0 {
+        if programmeURLs.count == 0 {
             self.logger?.add(toLog: "No programmes found on www.itv.com/hub/shows")
             showAlert(message: "No programmes were found on www.itv.com/hub/shows",
                       informative: "Try again later. If the problem persists please file a bug.")
             return false
         }
         
-        programmes.sort { $0.programmeName < $1.programmeName }
         return true
     }
 
-    func requestProgrammeEpisodes(_ myProgramme: ProgrammeData) {
+    func requestProgrammeEpisodes(programUrl: URL) {
         /* Get all episodes for the programme name identified in MyProgramme */
-        if let url = URL(string: myProgramme.programmeURL) {
-            mySession?.dataTask(with: url) {(data, _, error) in
-                self.processEpisodesForProgram(myProgramme, pageData: data, error: error)
-            }.resume()
+        if programUrl.absoluteString.contains("ninjawarrior") {
+            print("WAIT HERE!!!")
         }
+        mySession.dataTask(with: programUrl) {(data, _, error) -> Void in
+            self.processEpisodesForProgram(url: programUrl, pageData: data, error: error)
+        }.resume()
     }
-    
-    func dateForTimeString(_ time:String) -> Date? {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mmZ"
-        dateFormatter.timeZone = TimeZone(secondsFromGMT:0)
-        return dateFormatter.date(from: time)
-    }
+//
+//    func dateForTimeString(_ time:String) -> Date? {
+//        let dateFormatter = DateFormatter()
+//        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mmZ"
+//        dateFormatter.timeZone = TimeZone(secondsFromGMT:0)
+//        return dateFormatter.date(from: time)
+//    }
         
-    func processEpisodeElement(program: ProgrammeData, show: Kanna.XMLElement) {
-        let dateTimeString = show.at_xpath(".//@datetime")?.text
-        
-        var dateAiredUTC: Date? = nil
-        if let dateTimeString = dateTimeString {
-            dateAiredUTC = dateForTimeString(dateTimeString)
+    func processEpisodeElement(url: URL, show: Kanna.XMLElement) {
+        let programURL = url.deletingLastPathComponent()
+        guard let episodeURLString = show.at_xpath("@href")?.text,
+              let episodeURL = URL(string: episodeURLString) else {
+            return
         }
-        
-        let programURL = URL(string: program.programmeURL)?.deletingLastPathComponent()
 
-        let description = show.at_xpath(".//p[@class='tout__summary theme__subtle']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        var episodeNumber: Int? = 0
-        var episodeTitle: String?
-
-        let episodeContent = show.at_xpath(".//h3[@class='tout__title complex-link__target theme__target']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if let episodeContent = episodeContent {
-            if episodeContent.hasPrefix("Episode ") {
-                let pattern = #"Episode (\d+)"#;
-                let episodeRegex = try! NSRegularExpression(pattern: pattern, options: [])
-                let nsrange = NSRange(episodeContent.startIndex..<episodeContent.endIndex,
-                                      in: episodeContent)
-                episodeRegex.enumerateMatches(in: episodeContent,
-                                              options: [],
-                                              range: nsrange) { (match, _, stop) in
-                    guard let match = match else { return }
-                    if let numberRange = Range(match.range(at: 1), in: episodeContent) {
-                        episodeNumber = Int(episodeContent[numberRange])
-                    }
-                }
-                episodeTitle = episodeContent
-            } else {
-                let pattern = #"(\d+)\. (.+)"#
-                let episodeRegex = try! NSRegularExpression(pattern: pattern, options: [])
-                let nsrange = NSRange(episodeContent.startIndex..<episodeContent.endIndex,
-                                      in: episodeContent)
-                episodeRegex.enumerateMatches(in: episodeContent,
-                                              options: [],
-                                              range: nsrange) { (match, _, stop) in
-                    guard let match = match else { return }
-                    if let numberRange = Range(match.range(at: 1), in: episodeContent) {
-                        episodeNumber = Int(episodeContent[numberRange])
-                    }
-                    if let epNameRange = Range(match.range(at: 2), in: episodeContent) {
-                        episodeTitle = String(episodeContent[epNameRange])
-                    }
-                }
-            }
-        }
-        
-        var seriesNumber: Int? = 0
-        if let series = show.at_xpath(".//h2[@class='module__heading']")?.content?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            let seriesScanner = Scanner(string: series)
-            seriesScanner.scanString("Series ")
-            seriesNumber = seriesScanner.scanInteger()
-        }
-        
-        var productionID: String? = ""
-        var showURL: URL? = nil
-        if let showURLString = show.at_xpath("@href")?.text {
-            showURL = URL(string: showURLString)
-            productionID = showURL?.lastPathComponent
-        }
-        
-//        print("Program: \(program.programmeName)")
-//        print("Show URL: \(showURL?.absoluteString ?? "")")
-//        print("Episode number: \(episodeNumber ?? 0)")
-//        print("Series number: \(seriesNumber ?? 0)")
-//        print("productionID: \(productionID ?? "")")
-//        print("Date aired: \(dateTimeString ?? "Unknown")")
-//        print("=================")
-        
         // Make sure the URL matches the show listing -- ITV likes to sneak other shows on a program page.
-        if let showURLBase = showURL?.deletingLastPathComponent(), showURLBase.absoluteString == programURL?.absoluteString {
-            
-            /* Create ProgrammeData Object and store in array */
-            let myProgramme = ProgrammeData(name: program.programmeName, pid: productionID ?? "", url: showURL?.absoluteString ?? "", numberEpisodes: program.numberEpisodes , timeDateLastAired: dateAiredUTC, programDescription: description ?? "", thumbnailURL: "", episode: episodeTitle ?? "")
-            
-            myProgramme.addProgrammeSeriesInfo(seriesNumber ?? 0, aEpisodeNumber: episodeNumber ?? 0)
-            self.episodes.append(myProgramme)
+        let episodeURLBase = episodeURL.deletingLastPathComponent()
+        if episodeURLBase == programURL {
+            self.episodeURLs.append(episodeURL)
         }
-
     }
     
-    func processSingleEpisode(_ aProgramme: ProgrammeData, html: HTMLDocument) {
+    func processSingleEpisode(html: HTMLDocument) {
         if let descriptionElement = html.at_xpath("//script[@id=\"json-ld\"]"), let descriptionJSON = descriptionElement.content {
             let descriptionData = JSON(parseJSON: descriptionJSON)
             let breadcrumbs = descriptionData["itemListElement:"].arrayValue
             for item in breadcrumbs {
                 if item["item:"]["@type"] == "TVEpisode" {
                     let showMetadata = item["item:"]
-                    aProgramme.programDescription = showMetadata["description"].string ?? "None available"
-
-                    if let title = showMetadata["partOfSeries"].dictionaryValue["name"]?.stringValue {
-                        aProgramme.programmeName = title
+                    let urlString = showMetadata["@id"].stringValue
+                    if let url = URL(string: urlString) {
+                        self.episodeURLs.append(url)
+                        break
                     }
-
-                    let episodeTitle = showMetadata["name"].stringValue
-                    aProgramme.episodeTitle = episodeTitle
-                    
-                    let url = showMetadata["@id"].stringValue
-                    aProgramme.programmeURL = url
-                    aProgramme.productionId = URL(string: url)?.lastPathComponent ?? ""
-
-                    if let thumbnailURL = showMetadata["image"].dictionaryValue["url"]?.stringValue {
-                        aProgramme.thumbnailURL = thumbnailURL
-                    }
-
-                    break
                 }
             }
         }
-        
-        if let dateElement = html.at_xpath(".//li[@class='episode-info__meta-item episode-info__meta-item--broadcast']") {
-            if let dateTimeElement = dateElement.at_xpath(".//@datetime")?.text {
-                aProgramme.timeDateLastAired = dateForTimeString(dateTimeElement)
-            }
-        }
-        
-        let myProgramme = ProgrammeData(name: aProgramme.programmeName, pid: aProgramme.productionId, url: aProgramme.programmeURL, numberEpisodes: 1 , timeDateLastAired: aProgramme.timeDateLastAired, programDescription: aProgramme.programDescription, thumbnailURL: aProgramme.thumbnailURL, episode: aProgramme.episodeTitle)
-        
-        self.episodes.append(myProgramme)
     }
 
-    fileprivate func operationCompleted() {
-        let increment = Double(myQueueSize - 1) > 0 ? 100.0 / Double(myQueueSize - 1) : 100.0
-        AppController.shared().itvProgressIndicator.increment(by: increment)
-        
+    fileprivate func seriesOperationCompleted() {
         /* Check if there is any outstanding work before processing the carried forward programme list */
-        myQueueLeft -= 1
-        if (myQueueLeft == 0) {
+        showQueueLeft -= 1
+        if (showQueueLeft == 0) {
+            fetchEpisodeURLs()
+        }
+    }
+
+    fileprivate func episodeOperationCompleted() {
+        AppController.shared().itvProgressIndicator.isIndeterminate = false
+        let increment = Double(episodeQueueSize - 1) > 0 ? 100.0 / Double(episodeQueueSize - 1) : 100.0
+        AppController.shared().itvProgressIndicator.increment(by: increment)
+
+        /* Check if there is any outstanding work before processing the carried forward programme list */
+        episodeQueueLeft -= 1
+        if (episodeQueueLeft == 0) {
             writeEpisodeCacheFile()
         }
     }
-    
-    func processEpisodesForProgram(_ aProgramme: ProgrammeData, pageData: Data?, error: Error?) {
+
+    func processEpisodesForProgram(url: URL, pageData: Data?, error: Error?) {
         if let error = error {
-            let errorMessage = "GetITVListings (Error(\(error))): Unable to retreive programme episodes for \(aProgramme.programmeURL)"
+            let errorMessage = "GetITVListings (Error(\(error))): Unable to retreive programme episodes for \(url.absoluteString)"
             self.logger?.add(toLog: errorMessage)
-            operationCompleted()
+            seriesOperationCompleted()
             return
         }
 
         guard let pageData = pageData else {
-            operationCompleted()
+            seriesOperationCompleted()
             return
         }
         
@@ -319,72 +209,89 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
             if episodeElements.count > 0 {
                 // This is a series, so create a ProgrammeData for each episode.
                 for episode in episodeElements {
-                    processEpisodeElement(program: aProgramme, show: episode)
+                    processEpisodeElement(url: url, show: episode)
                 }
             } else {
                 // This page is itself a program (most likely a movie.)
                 // Extract its metadata and create a ProgrammeData for it.
-                processSingleEpisode(aProgramme, html: showPageHTML)
+                processSingleEpisode(html: showPageHTML)
             }
         }
         
-        operationCompleted()
+        seriesOperationCompleted()
     }
-    
-    func writeEpisodeCacheFile() {
-        self.logger?.add(toLog: "GetITVShows (Info): Episodes: \(episodes.count) Today Programmes: \(programmes.count) ")
-        
-        /* First we update datetimeadded for the carried forward programmes */
-        for programme: ProgrammeData in episodes {
-            programme.timeAdded = currentTime
+
+    func fetchEpisodeURLs() {
+        self.episodeQueueSize = episodeURLs.count
+        self.episodeQueueLeft = episodeQueueSize
+
+        for episodeURL in episodeURLs {
+                print("Starting request for \(episodeURL)")
+                self.requestEpisodePage(url: episodeURL)
         }
-        
-        /* Now write CF to disk */
-        NSKeyedArchiver.archiveRootObject(episodes, toFile: programmesFilePath)
+    }
+
+    func requestEpisodePage(url: URL) {
+
+        mySession.dataTask(with: url) {(data, _, error) -> Void in
+            print("Finished request for \(url)")
+
+            guard let pageData = data, let pageSource = String(data: pageData, encoding: .utf8) else {
+                self.episodeOperationCompleted()
+                return
+            }
+
+            let show = ITVMetadataExtractor.getShowMetadata(htmlPageContent: pageSource)
+            show.pid = url.lastPathComponent
+            show.url = url.absoluteString
+            self.episodes.append(show)
+            self.episodeOperationCompleted()
+        }.resume()
+    }
+
+    func writeEpisodeCacheFile() {
+        self.logger?.add(toLog: "GetITVShows (Info): Episodes: \(episodes.count) Today Programmes: \(programmeURLs.count) ")
         
         /* Now create the cache file that used to be created by get_iplayer */
         //    my @cache_format = qw/index type name episode seriesnum episodenum pid channel available expires duration desc web thumbnail timeadded/;
         let cacheFileHeader = "#index|type|name|episode|seriesnum|episodenum|pid|channel|available|expires|duration|desc|web|thumbnail|timeadded\n"
         var cacheIndexNumber: Int = 100000
-        var cachedEpisodeTitle: String = ""
         let isoFormatter = DateFormatter()
         isoFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZZZZZ"
         isoFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         var cacheFileEntries = [String]()
         cacheFileEntries.append(cacheFileHeader)
         
-        for episode: ProgrammeData in episodes {
+        for episode in episodes {
             var cacheFileContentString = ""
-            let dateAiredString = isoFormatter.string(from: episode.timeDateLastAired ?? Date())
+            let dateAiredString = isoFormatter.string(from: episode.dateAired)
 
-            if !episode.episodeTitle.isEmpty {
-                cachedEpisodeTitle = episode.episodeTitle
+            let cachedEpisodeTitle: String
+            if !episode.episodeName.isEmpty {
+                cachedEpisodeTitle = episode.episodeName
             } else {
-                cachedEpisodeTitle = DateFormatter.localizedString(from: episode.timeDateLastAired ?? Date(), dateStyle: .medium, timeStyle: .none)
+                cachedEpisodeTitle = DateFormatter.localizedString(from: episode.dateAired, dateStyle: .medium, timeStyle: .none)
             }
 
-            let dateAddedInteger: TimeInterval
-            if let timeAdded = episode.timeAdded {
-                dateAddedInteger = timeAdded.timeIntervalSince1970
-            } else {
-                dateAddedInteger = Date().timeIntervalSince1970
-            }
+            let dateAddedInteger = Date().timeIntervalSince1970
             
             //    my @cache_format = qw/index type name episode seriesnum episodenum pid channel available expires duration desc web thumbnail timeadded/;
             cacheFileContentString += String(format: "%06d|", cacheIndexNumber)
             cacheIndexNumber += 1
             cacheFileContentString += "itv|"
-            cacheFileContentString += episode.programmeName
+            cacheFileContentString += episode.showName
             cacheFileContentString += "|"
             cacheFileContentString += cachedEpisodeTitle
-            cacheFileContentString += "|\(episode.seriesNumber)|\(episode.episodeNumber)|"
-            cacheFileContentString += episode.productionId
+            cacheFileContentString += "|\(episode.season)|\(episode.episode)|"
+            cacheFileContentString += episode.pid
             cacheFileContentString += "|ITV Player|"
             cacheFileContentString += dateAiredString
-            cacheFileContentString += "|||\(episode.programDescription)"
+            cacheFileContentString += "|||\(episode.desc)"
             cacheFileContentString += "|"
-            cacheFileContentString += episode.programmeURL
-            cacheFileContentString += "||\(Int(dateAddedInteger))|\n"
+            cacheFileContentString += episode.url
+            cacheFileContentString += "|"
+            cacheFileContentString += episode.thumbnailURLString
+            cacheFileContentString += "|\(Int(dateAddedInteger))|\n"
             cacheFileEntries.append(cacheFileContentString)
         }
         
@@ -419,7 +326,7 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
     func endOfRun() {
         /* Notify finish and invaliate the NSURLSession */
         getITVShowRunning = false
-        mySession?.finishTasksAndInvalidate()
+        mySession.finishTasksAndInvalidate()
         NotificationCenter.default.post(name: NSNotification.Name("ITVUpdateFinished"), object: nil)
         self.logger?.add(toLog: "GetITVShows: Update Finished")
     }
