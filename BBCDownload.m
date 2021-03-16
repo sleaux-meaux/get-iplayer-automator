@@ -247,15 +247,15 @@
 
     // If we have a path it was successful. Note that and return.
     if (self.show.path.length > 0) {
-        self.show.complete = @YES;
-        self.show.successful = @YES;
+        self.show.complete = YES;
+        self.show.successful = YES;
         self.show.status = @"Download Complete";
         return;
     }
 
     // Handle all other error cases.
-    self.show.complete = @YES;
-    self.show.successful = @NO;
+    self.show.complete = YES;
+    self.show.successful = NO;
 
     if (self.reasonForFailure) {
         self.show.reasonForFailure = self.reasonForFailure;
@@ -323,10 +323,16 @@
     //Parse each line individually.
     for (NSString *output in array)
     {
-        if (output.length > 0) {
-            [self addToLog:output noTag:YES];
+        if ([output hasPrefix:@"DEBUG:"]) {
+            continue;
         }
 
+        if (self.verbose) {
+            if (output.length > 0) {
+                [self addToLog:output noTag:YES];
+            }
+        }
+        
         if ([output hasPrefix:@"INFO: Downloading subtitles"])
         {
             NSScanner *scanner = [NSScanner scannerWithString:output];
@@ -345,10 +351,6 @@
             self.show.path = path;
         }
         else if ([output hasPrefix:@"INFO: No specified modes"] && [output hasSuffix:@"--modes=)"])
-        {
-            self.reasonForFailure=@"proxy";
-        }
-        else if ([output hasPrefix:@"INFO: No specified modes"])
         {
             self.reasonForFailure = @"Specified_Modes";
             NSScanner *modeScanner = [NSScanner scannerWithString:output];

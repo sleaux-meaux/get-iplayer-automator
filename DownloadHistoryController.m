@@ -13,18 +13,19 @@
 
 
 @implementation DownloadHistoryController
-- (instancetype)init
+
+- (void)awakeFromNib
 {
-	if (!(self = [super init])) return nil;
-	[self readHistory:self];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(addToHistory:) name:@"AddProgToHistory" object:nil];
-	return self;
+    [self readHistory];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(addToHistory:) name:@"AddProgToHistory" object:nil];
 }
-- (void)readHistory:(id)sender
+
+- (void)readHistory
 {
 	NSLog(@"Read History");
-	if ([historyArrayController.arrangedObjects count] > 0)
+    if ([historyArrayController.arrangedObjects count] > 0) {
 		[historyArrayController removeObjectsAtArrangedObjectIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(0, [historyArrayController.arrangedObjects count])]];
+    }
 	
     NSString *historyFilePath = [[[NSFileManager defaultManager] applicationSupportDirectory] stringByAppendingPathComponent:@"download_history"];
 	NSFileHandle *historyFile = [NSFileHandle fileHandleForReadingAtPath:historyFilePath];
@@ -33,46 +34,24 @@
 	
 	if (historyFileInfo.length > 0)
 	{
-		NSString *string = [NSString stringWithString:historyFileInfo];
-		NSUInteger length = string.length;
-		NSUInteger paraStart = 0, paraEnd = 0, contentsEnd = 0;
-		NSMutableArray *array = [NSMutableArray array];
-		NSRange currentRange;
-		while (paraEnd < length) {
-			[string getParagraphStart:&paraStart end:&paraEnd
-						  contentsEnd:&contentsEnd forRange:NSMakeRange(paraEnd, 0)];
-			currentRange = NSMakeRange(paraStart, contentsEnd - paraStart);
-			[array addObject:[string substringWithRange:currentRange]];
-		}
-		for (NSString *entry in array)
-		{
-			if (entry.length >0)
-			{
-				NSScanner *scanner = [NSScanner scannerWithString:entry];
-				NSString *pidtwo, *showNametwo, *episodeNametwo, *typetwo, *someNumbertwo, *downloadFormattwo, *downloadPathtwo;
-				[scanner scanUpToString:@"|" intoString:&pidtwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&showNametwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&episodeNametwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&typetwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&someNumbertwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&downloadFormattwo];
-				[scanner scanString:@"|" intoString:nil];
-				[scanner scanUpToString:@"|" intoString:&downloadPathtwo];
-				DownloadHistoryEntry *historyEntry = [[DownloadHistoryEntry alloc] initWithPID:pidtwo 
-																					  showName:showNametwo 
-																				   episodeName:episodeNametwo 
-																						  type:typetwo 
-																					someNumber:someNumbertwo 
-																				downloadFormat:downloadFormattwo 
-																				  downloadPath:downloadPathtwo];
-				[historyArrayController addObject:historyEntry];
-			}
-		}
+        NSArray *historyEntries = [historyFileInfo componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+
+        for (NSString *entry in historyEntries) {
+            if (entry.length == 0) {
+                continue;
+            }
+            
+            DownloadHistoryEntry *historyEntry = [DownloadHistoryEntry new];
+            NSArray *components = [entry componentsSeparatedByString:@"|"];
+            historyEntry.pid = components[0];
+            historyEntry.showName = components[1];
+            historyEntry.episodeName = components[2];
+            historyEntry.type = components[3];
+            historyEntry.someNumber = components[4];
+            historyEntry.downloadFormat = components[5];
+            historyEntry.downloadPath = components[6];
+            [historyArrayController addObject:historyEntry];
+        }
 	}
 	NSLog(@"end read history");
 }
@@ -133,7 +112,9 @@
 {
 	if (!runDownloads)
 	{
-		if (!historyWindow.documentEdited) [self readHistory:self];
+        if (!historyWindow.documentEdited) {
+            [self readHistory];
+        }
 		[historyWindow makeKeyAndOrderFront:self];
 		saveButton.enabled = historyWindow.documentEdited;
 	}
@@ -167,15 +148,25 @@
 	[saveButton setEnabled:NO];
 	[historyWindow close];
 }
+
 - (void)addToHistory:(NSNotification *)note
 {
-	[self readHistory:self];
+	[self readHistory];
 	NSDictionary *userInfo = note.userInfo;
 	Programme *prog = [userInfo valueForKey:@"Programme"];
-	DownloadHistoryEntry *entry = [[DownloadHistoryEntry alloc] initWithPID:prog.pid showName:prog.seriesName episodeName:prog.episodeName type:nil someNumber:@"251465" downloadFormat:@"flashhigh" downloadPath:@"/"];
+    NSInteger now = [[NSDate new] timeIntervalSince1970];
+    DownloadHistoryEntry *entry = [DownloadHistoryEntry new];
+    entry.pid = prog.pid;
+    entry.showName = prog.seriesName;
+    entry.episodeName = prog.episodeName;
+    entry.someNumber = [NSString stringWithFormat:@"%ld", now];
+    entry.type = @"itv";
+    entry.downloadFormat = @"flashhigh";
+    entry.downloadPath = prog.path;
 	[historyArrayController addObject:entry];
 	[self writeHistory:self];
 }
+
 - (void)addToLog:(NSString *)logMessage
 {
 	[[NSNotificationCenter defaultCenter] postNotificationName:@"AddToLog" object:self userInfo:@{@"message": logMessage}];
