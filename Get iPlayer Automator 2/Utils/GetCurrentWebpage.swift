@@ -9,83 +9,128 @@
 
 import Kanna
 import ScriptingBridge
+import SwiftyJSON
+import AppKit
 
 @objcMembers public class GetCurrentWebpage : NSObject {
     
-    private class func extractMetadata(url: String, tabTitle: String, pageSource: String?) -> (pid: String?, showName: String?, network: String?, isRadio: Bool) {
-        var pid: String?
-        var showName: String?
-        var network: String?
-        var isRadio = false
-        
+    private class func extractMetadata(url: String, tabTitle: String, pageSource: String) -> Programme {
+        var show = Programme()
+
         if url.hasPrefix("https://www.bbc.co.uk/iplayer/episode/") {
             // PID is always the second-to-last element in the URL.
             if let nsUrl = URL(string: url) {
-                pid = nsUrl.deletingLastPathComponent().lastPathComponent
+                show.pid = nsUrl.deletingLastPathComponent().lastPathComponent
             }
 
-            let nameScanner = Scanner(string: tabTitle)
-            nameScanner.scanString("BBC iPlayer - ")
-            showName = nameScanner.scanUpToString( " - ")
-            network = "BBC"
+            let titlePrefix = "BBC iPlayer - "
+            if tabTitle.hasPrefix(titlePrefix) {
+                show.showName = tabTitle.replacingOccurrences(of: titlePrefix, with: "")
+            }
+
+            show.network = "BBC"
             // TODO: Get the series/episode info from the tail.
+        } else if url.hasPrefix("https://www.bbc.co.uk/iplayer/episodes/") {
+            // https://www.bbc.co.uk/iplayer/episodes/p00yzlr0/line-of-duty?seriesId=b01k9pm3
+            // It looks like a PID, but it's a 'brand ID' The real URL is embedded in an anchor tag.
+            if let htmlPage = try? HTML(html: pageSource, encoding: .utf8) {
+                // There should only be one 'video' element.
+                if let anchorElement = htmlPage.at_xpath("//a[@class='play-cta__inner play-cta__inner--do-not-wrap play-cta__inner--link']") {
+                    let showURLString = anchorElement.at_xpath("//@href")?.text ?? ""
+                    if let pageURL = URL(string: url), let showURL = URL(string: showURLString, relativeTo: pageURL) {
+                        show.pid = showURL.deletingLastPathComponent().lastPathComponent
+                        show.url = showURL.absoluteString
+                    }
+                }
+            }
+
+            let titlePrefix = "BBC iPlayer - "
+            if tabTitle.hasPrefix(titlePrefix) {
+                show.showName = tabTitle.replacingOccurrences(of: titlePrefix, with: "")
+            }
+
+            show.network = "BBC"
         } else if url.hasPrefix("https://www.bbc.co.uk/radio/play/") || url.hasPrefix("https://www.bbc.co.uk/sounds/play/") {
             // PID is always the last element in the URL.
             if let nsUrl = URL(string: url) {
-                pid = nsUrl.lastPathComponent
-                network = "BBC"
+                show.pid = nsUrl.lastPathComponent
+                show.network = "BBC"
             }
 
-            isRadio = true
+            show.isRadio = true
             // Program title is buried in the page HTML.
             
         } else if url.hasPrefix("https://www.bbc.co.uk/programmes/") {
-            // PID is the last element in the URL, but it could be a program or series page.
-            if let nsUrl = URL(string: url) {
-                pid = nsUrl.lastPathComponent
-                network = "BBC"
+            // Search the page to see if it is an episode or a series page. If we don't the PID inside
+            // a bbcProgrammes element, it's a series page and we can't use it (though we might want to try
+            // adding it with recursive-pid)
+            guard let htmlPage = try? HTML(html: pageSource, encoding: .utf8) else {
+                return show
             }
-            
-            if let pid = pid, let pageSource = pageSource {
-                // Search the page to see if it is an episode or a series page. If we don't the PID inside
-                // a bbcProgrammes element, it's a series page and we can't use it (though we might want to try
-                // adding it with recursive-pid)
-                let scanner = Scanner(string: pageSource)
-                scanner.scanUpTo("\"@type\":\"TVEpisode\",\"identifier\":\"\(pid)\"", into: nil)
-                if scanner.isAtEnd {
-                    scanner.scanLocation = 0
-                    scanner.scanUpTo("\"@type\":\"RadioEpisode\",\"identifier\":\"\(pid)\"", into: nil)
-                    
-                    // Radio shows and clips will be routed to Music.app.
-                    isRadio = true
-                    
-                    if scanner.isAtEnd {
-                        scanner.scanLocation = 0
-                        scanner.scanUpTo("bbcProgrammes.programme = { pid : '\(pid)', type : 'clip' }", into: nil)
+
+            var infoDicts: [JSON] = []
+
+            for showInfo in htmlPage.xpath("//script[@type='application/ld+json']") {
+                guard let content = showInfo.content, !content.isEmpty else {
+                    continue
+                }
+
+                let infoJSON = JSON(parseJSON: content)
+
+                if infoJSON["@type"].exists() {
+                    infoDicts.append(infoJSON)
+                } else {
+                    let graphBlocks = infoJSON["@graph"].arrayValue
+                    for block in graphBlocks {
+                        if block["@type"].exists() {
+                            infoDicts.append(block)
+                        }
                     }
                 }
-                
-                if scanner.isAtEnd {
-                    let invalidPage = NSAlert()
-                    invalidPage.addButton(withTitle: "OK")
-                    invalidPage.messageText = "Series Page Found: \(url)"
-                    invalidPage.informativeText = "Please ensure the frontmost browser tab is open to an iPlayer episode page or programme clip page. Get iPlayer Automator doesn't support downloading all available shows from a series."
-                    invalidPage.alertStyle = .warning
-                    invalidPage.runModal()
-                    return (nil, nil, nil, false)
+            }
+
+            // Search all of the show infos for something we know about.
+            for infoDict in infoDicts {
+                let contentType = infoDict["@type"]
+
+                if contentType == "BreadcrumbList" {
+                    continue
+                }
+
+                switch contentType {
+                case "TVEpisode", "@TVEpisode", "@RadioEpisode", "RadioEpisode", "Clip":
+                    show.pid = infoDict["identifier"].stringValue
+                    show.seriesName = infoDict["partOfSeries"]["name"].stringValue
+                    show.episodeName = infoDict["name"].stringValue
+                    show.url = infoDict["url"].stringValue
+                    show.summary = infoDict["description"].stringValue
+                    show.showName = !show.seriesName.isEmpty ? show.seriesName : show.episodeName
+
+                    if ["@RadioEpisode", "RadioEpisode"].contains(contentType.stringValue) {
+                        show.isRadio = true
+                    }
+
+                    break
+
+                default:
+                    continue
                 }
             }
 
-        } else if url.hasPrefix("https://www.itv.com/hub/") {
-            if let nsUrl = URL(string: url) {
-                pid = nsUrl.lastPathComponent
+            if show.pid.isEmpty {
+                let invalidPage = NSAlert()
+                invalidPage.addButton(withTitle: "OK")
+                invalidPage.messageText = "Series Page Found: \(url)"
+                invalidPage.informativeText = "Please ensure the frontmost browser tab is open to an iPlayer episode page or programme clip page. Get iPlayer Automator doesn't support downloading all available shows from a series."
+                invalidPage.alertStyle = .warning
+                invalidPage.runModal()
+                return show
             }
-
-            showName = tabTitle.replacingOccurrences(of: " - ITV Hub", with: "")
-            network = "ITV"
+        } else if url.hasPrefix("https://www.itv.com/hub/") {
+            show = ITVMetadataExtractor.getShowMetadata(htmlPageContent: pageSource)
         }
 
-        return (pid, showName, network, isRadio)
+        return show
     }
     
     public class func getCurrentWebpage(_ logger: LogController) -> Programme? {
@@ -93,30 +138,22 @@ import ScriptingBridge
         guard let browser = UserDefaults.standard.object(forKey: "DefaultBrowser") as? String else {
             return nil
         }
-        
-        // Parsed show name from tab title
-        var newShowName: String? = nil
-        
-        // Program ID of found show
-        var pid: String? = nil
-        
-        // Network of found show.
-        var network: String? = nil
-        
-        var isRadio = false
-        
+
+        var newProgram: Programme? = nil
+
         //Prepare Alert in Case the Browser isn't Open
         let browserNotOpen = NSAlert()
         browserNotOpen.addButton(withTitle: "OK")
         browserNotOpen.messageText = "\(browser) is not open."
         browserNotOpen.informativeText = "Please ensure your browser is running and has at least one window open."
         browserNotOpen.alertStyle = .warning
-        
+
         //Get URL
-        if (browser == "Safari") {
+        switch (browser) {
+        case "Safari":
             var safariRunning: SafariApplication? = nil
             let safariTechPreview = SBApplication(bundleIdentifier: "com.apple.SafariTechnologyPreview")
-            
+
             if safariTechPreview?.isRunning ?? false {
                 safariRunning = safariTechPreview
             } else {
@@ -125,7 +162,7 @@ import ScriptingBridge
                     safariRunning = safariDefault
                 }
             }
-            
+
             guard let safari = safariRunning, let safariWindows = safari.windows?().compactMap({ $0 as? SafariWindow }) else {
                 browserNotOpen.runModal()
                 return nil
@@ -133,20 +170,32 @@ import ScriptingBridge
 
             let orderedWindows = safariWindows.sorted { $0.index! < $1.index! }
             if let frontWindow = orderedWindows.first, let tab = frontWindow.currentTab, let url = tab.URL, let name = tab.name, let source = tab.source {
-                (pid, newShowName, network, isRadio) = extractMetadata(url: url, tabTitle: name, pageSource: source)
+                newProgram = extractMetadata(url: url, tabTitle: name, pageSource: source)
             }
-        } else if (browser == "Chrome") {
-            guard let chrome : ChromeApplication = SBApplication(bundleIdentifier: "com.google.Chrome"), chrome.isRunning, let chromeWindows = chrome.windows?().compactMap({ $0 as? ChromeWindow }) else {
+            break
+
+        case "Chrome", "Microsoft Edge", "Vivaldi":
+            // All WebKit browsers have the same AppleScript support.
+            // We just need to find the right bundle ID.
+            let mapping = [
+                "Chrome" : "com.google.Chrome",
+                "Microsoft Edge" : "com.microsoft.edgemac",
+                "Vivaldi" : "com.vivaldi.Vivaldi"]
+
+            guard let bundleID = mapping[browser], let chrome : ChromeApplication = SBApplication(bundleIdentifier: bundleID), chrome.isRunning, let chromeWindows = chrome.windows?().compactMap({ $0 as? ChromeWindow }) else {
                 browserNotOpen.runModal()
                 return nil
             }
 
             let orderedWindows = chromeWindows.sorted { $0.index! < $1.index! }
-            if let frontWindow = orderedWindows.first, let tab = frontWindow.activeTab, let url = tab.URL, let title = tab.title {
-                let source = tab.executeJavascript?("document.documentElement.outerHTML") as? String
-                (pid, newShowName, network, isRadio) = extractMetadata(url: url, tabTitle: title, pageSource: source)
+            if let frontWindow = orderedWindows.first, let tab = frontWindow.activeTab, let url = tab.URL, let title = tab.title,
+               let source = tab.executeJavascript?("document.documentElement.outerHTML") as? String {
+                newProgram = extractMetadata(url: url, tabTitle: title, pageSource: source)
             }
-        } else {
+
+            break
+
+        default:
             let unsupportedBrowser = NSAlert()
             unsupportedBrowser.messageText = "Uh, something went horribly wrong."
             unsupportedBrowser.addButton(withTitle: "OK")
@@ -154,9 +203,9 @@ import ScriptingBridge
             unsupportedBrowser.runModal()
             return nil
         }
-        
+
         // If we have a PID we can search for it.
-        guard let foundPID = pid else {
+        guard let pid = newProgram?.pid, !pid.isEmpty else {
             let invalidPage = NSAlert()
             invalidPage.addButton(withTitle: "OK")
             invalidPage.messageText = "Programme Page Not Found"
@@ -166,14 +215,9 @@ import ScriptingBridge
             return nil
         }
 
-        let newProg = Programme()
-        newProg.pid = foundPID
-        newProg.showName = newShowName ?? ""
-        newProg.status = "Processing..."
-        newProg.tvNetwork = network ?? ""
-        newProg.radio = NSNumber(booleanLiteral: isRadio)
-        newProg.performSelector(inBackground: #selector(Programme.getName), with: nil)
-        return newProg
+        newProgram?.status = "Processing..."
+//        newProgram?.performSelector(inBackground: #selector(Programme.getName))
+        return newProgram
     }
-    
+
 }

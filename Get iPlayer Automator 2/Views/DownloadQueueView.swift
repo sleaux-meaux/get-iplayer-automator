@@ -14,11 +14,11 @@ struct DownloadQueueView: View {
         List {
             ForEach (queuedShows.programs) { queuedShow in
                 HStack {
-                    Text(queuedShow.title)
+                    Text(queuedShow.showName)
                     Spacer()
                     Text(queuedShow.series?.name ?? "None")
                     Spacer()
-                    Text(DateFormatter().string(from: queuedShow.dateAired))
+                    Text(DateFormatter().string(from: queuedShow.lastBroadcast))
                 }
             }
         }

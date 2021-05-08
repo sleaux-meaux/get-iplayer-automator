@@ -8,24 +8,15 @@
 import Foundation
 import SwiftUI
 
-public class Program : ObservableObject, Identifiable, CustomStringConvertible {
+public class Programme : ObservableObject, Identifiable, CustomStringConvertible {
     public var id = UUID()
     
     var series: Series?
-    var pid: String = "" {
-        didSet {
-            pid = pid.replacingOccurrences(of: ";amp", with: "&")
-        }
-    }
+    var pid: String = ""
     var status: String = ""
-    var title: String = ""
-//    {
-//        didSet {
-//            title = title.removingPercentEncoding
-//        }
-//
-//    }
-    var episodeTitle: String = ""
+    var showName: String = "" // TODO: Make this 'title'
+    var seriesName: String = ""
+    var episodeName: String = ""
     var network: String = ""
     var season: Int = 0
     var episode: Int = 0
@@ -35,12 +26,8 @@ public class Program : ObservableObject, Identifiable, CustomStringConvertible {
     var subtitlePath: String = ""
     var availableModes: String = ""
     var url: String = ""
-    var dateAired = Date()
-    var standardizedDate = ""
     var summary = ""
-    
-    var timeAdded = Date()
-    
+
     var complete = false
     var successful = false
     var failureReason = ""
@@ -54,8 +41,8 @@ public class Program : ObservableObject, Identifiable, CustomStringConvertible {
     var extendedMetadataSuccess = false
     var duration: Int = 0
     var categories = ""
-    var firstBroadcast: Date?
-    var lastBroadcast: Date?
+    var firstBroadcast = Date()
+    var lastBroadcast = Date()
     var modeSizes: [String] = []
     var thumbnailURL = ""
     var thumbnail: Image?
@@ -63,6 +50,6 @@ public class Program : ObservableObject, Identifiable, CustomStringConvertible {
     //var metadataTask: GetiPlayerTask?
     
     public var description: String {
-        return "title = \(title), episodeTitle = \(episodeTitle), date = \(standardizedDate)"
+        return "title = \(showName), episodeTitle = \(episodeName), date = \(lastBroadcast)"
     }
 }

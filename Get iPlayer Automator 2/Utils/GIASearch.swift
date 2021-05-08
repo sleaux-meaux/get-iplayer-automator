@@ -10,7 +10,7 @@ import Foundation
 
 class GIASearch {
     var completion: ((GIASearch)->Void)?
-    var searchResults: [Program] = []
+    var searchResults: [Programme] = []
     
     let searchTerms: [String]
     let logger: Logging
@@ -34,10 +34,11 @@ class GIASearch {
         task.executableURL = getIPlayerPath
         
         var args = [
-            noWarningArg,
+            "--nocopyright",
             cacheExpiryArgument,
-            typeArgumentForCacheUpdate(includeITV: true),
-            searchResultFormat,
+            typeArgumentForCacheUpdate(includeITV: true, forCacheUpdate: false),
+            "--listformat",
+            "SearchResult|<pid>|<available>|<type>|<name>|<episode>|<channel>|<seriesnum>|<episodenum>|<desc>|<thumbnail>|<web>|<available>",
             profileDirArgument,
             "--long",
             "--nopurge",
@@ -80,7 +81,7 @@ class GIASearch {
         }
 
         let resultArray = stringData.components(separatedBy: .newlines)
-        var programsFound = [Program]()
+        var programsFound = [Programme]()
 
         let rawDateParser = DateFormatter()
         let enUSPOSIXLocale = Locale(identifier: "en_US_POSIX")
@@ -95,13 +96,12 @@ class GIASearch {
                 }
                 return
             }
-            let p = Program()
+            let p = Programme()
             let fields = $0.split(separator: "|", omittingEmptySubsequences: false)
             p.pid = String(fields[1])
 
             if let broadcastDate = rawDateParser.date(from: String(fields[2])) {
                 p.lastBroadcast = broadcastDate
-                p.standardizedDate = DateFormatter.localizedString(from: broadcastDate, dateStyle: .medium, timeStyle: .none)
             }
             
             //SearchResult|<pid>|<available>|<type>|<name>|<episode>|<channel>|<seriesnum>|<episodenum>|<desc>|<thumbnail>|<web>
@@ -109,8 +109,8 @@ class GIASearch {
                 p.isRadio = true
             }
             
-            p.title = String(fields[4])
-            p.episodeTitle = String(fields[5])
+            p.showName = String(fields[4])
+            p.episodeName = String(fields[5])
             p.network = String(fields[6])
             p.season = Int(String(fields[7])) ?? 0
             p.episode = Int(String(fields[8])) ?? 0
@@ -120,7 +120,7 @@ class GIASearch {
             //                p.thumbnail = Image( URL(string(p.thumbnailURL))
             p.url = String(fields[11])
             
-            if p.pid.count == 0 || p.title.count == 0 || p.network.count == 0 || p.url.count == 0 {
+            if p.pid.count == 0 || p.showName.count == 0 || p.network.count == 0 || p.url.count == 0 {
                 logger.addToLog("WARNING: Skipped invalid search result: \($0)")
             } else {
                 programsFound.append(p)

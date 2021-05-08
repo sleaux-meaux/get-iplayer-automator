@@ -7,19 +7,27 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7F77AE69264711B200CC524F /* ChromeScripting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE65264711B200CC524F /* ChromeScripting.swift */; };
+		7F77AE6A264711B200CC524F /* Chrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE66264711B200CC524F /* Chrome.swift */; };
+		7F77AE6B264711B200CC524F /* SafariScripting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE67264711B200CC524F /* SafariScripting.swift */; };
+		7F77AE6C264711B200CC524F /* Safari.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE68264711B200CC524F /* Safari.swift */; };
+		7F77AE6F264711ED00CC524F /* SBApplicationProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE6D264711ED00CC524F /* SBApplicationProtocol.swift */; };
+		7F77AE70264711ED00CC524F /* SBObjectProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE6E264711ED00CC524F /* SBObjectProtocol.swift */; };
+		7F77AE722647296F00CC524F /* ITVMetadataExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE712647296F00CC524F /* ITVMetadataExtractor.swift */; };
+		7F77AE732647296F00CC524F /* ITVMetadataExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE712647296F00CC524F /* ITVMetadataExtractor.swift */; };
+		7F77AE7826475C4D00CC524F /* FileManager+DirectoryLocations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE7726475C4D00CC524F /* FileManager+DirectoryLocations.swift */; };
+		7F77AE7926475C4D00CC524F /* FileManager+DirectoryLocations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F77AE7726475C4D00CC524F /* FileManager+DirectoryLocations.swift */; };
 		7FA4E7DB24E242B500A4B5E5 /* GetCurrentWebpage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA4E7DA24E242B500A4B5E5 /* GetCurrentWebpage.swift */; };
-		7FA4E7DD24E2430200A4B5E5 /* GetExtendedBBCMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA4E7DC24E2430200A4B5E5 /* GetExtendedBBCMetadata.swift */; };
 		7FCF888B24DC673C007B155A /* Series.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887B24DC673C007B155A /* Series.swift */; };
 		7FCF888C24DC673C007B155A /* GetiPlayerTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887C24DC673C007B155A /* GetiPlayerTask.swift */; };
 		7FCF888D24DC673C007B155A /* RadioFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887D24DC673C007B155A /* RadioFormat.swift */; };
 		7FCF888E24DC673C007B155A /* TVFormat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887E24DC673C007B155A /* TVFormat.swift */; };
-		7FCF888F24DC673C007B155A /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887F24DC673C007B155A /* Program.swift */; };
-		7FCF889024DC673C007B155A /* ITVProgram.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888024DC673C007B155A /* ITVProgram.swift */; };
+		7FCF888F24DC673C007B155A /* Programme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887F24DC673C007B155A /* Programme.swift */; };
+		7FCF889024DC673C007B155A /* ITVProgramme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888024DC673C007B155A /* ITVProgramme.swift */; };
 		7FCF889124DC673C007B155A /* ITVPrograms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888124DC673C007B155A /* ITVPrograms.swift */; };
 		7FCF889224DC673C007B155A /* ProgramCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888224DC673C007B155A /* ProgramCache.swift */; };
 		7FCF889324DC673C007B155A /* SearchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888424DC673C007B155A /* SearchView.swift */; };
 		7FCF889424DC673C007B155A /* DownloadQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888524DC673C007B155A /* DownloadQueue.swift */; };
-		7FCF889524DC673C007B155A /* FileManager+DirectoryLocations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888624DC673C007B155A /* FileManager+DirectoryLocations.swift */; };
 		7FCF889624DC673C007B155A /* DownloadQueueView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888724DC673C007B155A /* DownloadQueueView.swift */; };
 		7FCF889724DC673C007B155A /* LogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888824DC673C007B155A /* LogView.swift */; };
 		7FCF889824DC673C007B155A /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888924DC673C007B155A /* MainView.swift */; };
@@ -41,11 +49,10 @@
 		7FCF88C824DDD77A007B155A /* GIASearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88BB24DDBC50007B155A /* GIASearch.swift */; };
 		7FCF88C924DDD780007B155A /* GIPArguments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88B424DDB622007B155A /* GIPArguments.swift */; };
 		7FCF88CA24DDD7EF007B155A /* LogController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888A24DC673C007B155A /* LogController.swift */; };
-		7FCF88CB24DDD7F2007B155A /* FileManager+DirectoryLocations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF888624DC673C007B155A /* FileManager+DirectoryLocations.swift */; };
 		7FCF88CD24DDD813007B155A /* Logging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88CC24DDD813007B155A /* Logging.swift */; };
 		7FCF88CE24DDD817007B155A /* Logging.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88CC24DDD813007B155A /* Logging.swift */; };
 		7FCF88D024DDD879007B155A /* TestLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88CF24DDD879007B155A /* TestLogger.swift */; };
-		7FCF88D124DDD931007B155A /* Program.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887F24DC673C007B155A /* Program.swift */; };
+		7FCF88D124DDD931007B155A /* Programme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887F24DC673C007B155A /* Programme.swift */; };
 		7FCF88D224DDD937007B155A /* Series.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF887B24DC673C007B155A /* Series.swift */; };
 		7FCF88D624DE20AE007B155A /* DownloadHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88D524DE20AE007B155A /* DownloadHistory.swift */; };
 		7FCF88D724DE20AE007B155A /* DownloadHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FCF88D524DE20AE007B155A /* DownloadHistory.swift */; };
@@ -88,19 +95,26 @@
 /* Begin PBXFileReference section */
 		7F19DC4623769621003DD146 /* Get iPlayer Automator 2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Get iPlayer Automator 2.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7F19DC5623769624003DD146 /* Get_iPlayer_Automator_2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Get_iPlayer_Automator_2.entitlements; sourceTree = "<group>"; };
+		7F77AE65264711B200CC524F /* ChromeScripting.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ChromeScripting.swift; path = ../../ChromeScripting.swift; sourceTree = "<group>"; };
+		7F77AE66264711B200CC524F /* Chrome.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = Chrome.swift; path = ../../Chrome.swift; sourceTree = "<group>"; };
+		7F77AE67264711B200CC524F /* SafariScripting.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SafariScripting.swift; path = ../../SafariScripting.swift; sourceTree = "<group>"; };
+		7F77AE68264711B200CC524F /* Safari.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = Safari.swift; path = ../../Safari.swift; sourceTree = "<group>"; };
+		7F77AE6D264711ED00CC524F /* SBApplicationProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SBApplicationProtocol.swift; path = ../../SBApplicationProtocol.swift; sourceTree = "<group>"; };
+		7F77AE6E264711ED00CC524F /* SBObjectProtocol.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = SBObjectProtocol.swift; path = ../../SBObjectProtocol.swift; sourceTree = "<group>"; };
+		7F77AE712647296F00CC524F /* ITVMetadataExtractor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ITVMetadataExtractor.swift; sourceTree = "<group>"; };
+		7F77AE7726475C4D00CC524F /* FileManager+DirectoryLocations.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "FileManager+DirectoryLocations.swift"; sourceTree = "<group>"; };
 		7FA4E7DA24E242B500A4B5E5 /* GetCurrentWebpage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GetCurrentWebpage.swift; sourceTree = "<group>"; };
 		7FA4E7DC24E2430200A4B5E5 /* GetExtendedBBCMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetExtendedBBCMetadata.swift; sourceTree = "<group>"; };
 		7FCF887B24DC673C007B155A /* Series.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Series.swift; sourceTree = "<group>"; };
 		7FCF887C24DC673C007B155A /* GetiPlayerTask.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GetiPlayerTask.swift; sourceTree = "<group>"; };
 		7FCF887D24DC673C007B155A /* RadioFormat.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RadioFormat.swift; sourceTree = "<group>"; };
 		7FCF887E24DC673C007B155A /* TVFormat.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TVFormat.swift; sourceTree = "<group>"; };
-		7FCF887F24DC673C007B155A /* Program.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Program.swift; sourceTree = "<group>"; };
-		7FCF888024DC673C007B155A /* ITVProgram.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ITVProgram.swift; sourceTree = "<group>"; };
+		7FCF887F24DC673C007B155A /* Programme.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Programme.swift; sourceTree = "<group>"; };
+		7FCF888024DC673C007B155A /* ITVProgramme.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ITVProgramme.swift; sourceTree = "<group>"; };
 		7FCF888124DC673C007B155A /* ITVPrograms.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ITVPrograms.swift; sourceTree = "<group>"; };
 		7FCF888224DC673C007B155A /* ProgramCache.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ProgramCache.swift; sourceTree = "<group>"; };
 		7FCF888424DC673C007B155A /* SearchView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SearchView.swift; sourceTree = "<group>"; };
 		7FCF888524DC673C007B155A /* DownloadQueue.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DownloadQueue.swift; sourceTree = "<group>"; };
-		7FCF888624DC673C007B155A /* FileManager+DirectoryLocations.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "FileManager+DirectoryLocations.swift"; sourceTree = "<group>"; };
 		7FCF888724DC673C007B155A /* DownloadQueueView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DownloadQueueView.swift; sourceTree = "<group>"; };
 		7FCF888824DC673C007B155A /* LogView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogView.swift; sourceTree = "<group>"; };
 		7FCF888924DC673C007B155A /* MainView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
@@ -185,13 +199,19 @@
 		7FCF887A24DC673C007B155A /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				7F77AE6D264711ED00CC524F /* SBApplicationProtocol.swift */,
+				7F77AE6E264711ED00CC524F /* SBObjectProtocol.swift */,
+				7F77AE66264711B200CC524F /* Chrome.swift */,
+				7F77AE65264711B200CC524F /* ChromeScripting.swift */,
+				7F77AE68264711B200CC524F /* Safari.swift */,
+				7F77AE67264711B200CC524F /* SafariScripting.swift */,
 				7FCF887B24DC673C007B155A /* Series.swift */,
 				7FCF887C24DC673C007B155A /* GetiPlayerTask.swift */,
 				7FCF887D24DC673C007B155A /* RadioFormat.swift */,
 				7FCF887E24DC673C007B155A /* TVFormat.swift */,
-				7FCF887F24DC673C007B155A /* Program.swift */,
+				7FCF887F24DC673C007B155A /* Programme.swift */,
 				7FA4E7DC24E2430200A4B5E5 /* GetExtendedBBCMetadata.swift */,
-				7FCF888024DC673C007B155A /* ITVProgram.swift */,
+				7FCF888024DC673C007B155A /* ITVProgramme.swift */,
 				7FCF888124DC673C007B155A /* ITVPrograms.swift */,
 				7FCF888224DC673C007B155A /* ProgramCache.swift */,
 				7FCF88B724DDBAF1007B155A /* DownloadedProgram.swift */,
@@ -206,7 +226,6 @@
 			children = (
 				7FCF888424DC673C007B155A /* SearchView.swift */,
 				7FCF888524DC673C007B155A /* DownloadQueue.swift */,
-				7FCF888624DC673C007B155A /* FileManager+DirectoryLocations.swift */,
 				7FCF888724DC673C007B155A /* DownloadQueueView.swift */,
 				7FCF888824DC673C007B155A /* LogView.swift */,
 				7FCF888924DC673C007B155A /* MainView.swift */,
@@ -239,7 +258,9 @@
 		7FCF88B624DDB983007B155A /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				7F77AE7726475C4D00CC524F /* FileManager+DirectoryLocations.swift */,
 				7FA4E7DA24E242B500A4B5E5 /* GetCurrentWebpage.swift */,
+				7F77AE712647296F00CC524F /* ITVMetadataExtractor.swift */,
 				7FCF88B424DDB622007B155A /* GIPArguments.swift */,
 				7FCF88BB24DDBC50007B155A /* GIASearch.swift */,
 				7FCF88CC24DDD813007B155A /* Logging.swift */,
@@ -313,7 +334,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1160;
-				LastUpgradeCheck = 1160;
+				LastUpgradeCheck = 1250;
 				ORGANIZATIONNAME = "Ascoware LLC";
 				TargetAttributes = {
 					7F19DC4523769621003DD146 = {
@@ -366,33 +387,39 @@
 				7FCF88D924DF1563007B155A /* DownloadHistoryView.swift in Sources */,
 				7FA4E7DB24E242B500A4B5E5 /* GetCurrentWebpage.swift in Sources */,
 				7FCF88B824DDBAF1007B155A /* DownloadedProgram.swift in Sources */,
+				7F77AE69264711B200CC524F /* ChromeScripting.swift in Sources */,
+				7F77AE6A264711B200CC524F /* Chrome.swift in Sources */,
 				7FCF88DB24DF1B2F007B155A /* DownloadHistoryRow.swift in Sources */,
+				7F77AE70264711ED00CC524F /* SBObjectProtocol.swift in Sources */,
+				7F77AE6C264711B200CC524F /* Safari.swift in Sources */,
 				7FCF888C24DC673C007B155A /* GetiPlayerTask.swift in Sources */,
 				7FCF88E924DF71B2007B155A /* PreferencePanelView.swift in Sources */,
 				7FCF88CD24DDD813007B155A /* Logging.swift in Sources */,
 				7FCF888B24DC673C007B155A /* Series.swift in Sources */,
-				7FCF889524DC673C007B155A /* FileManager+DirectoryLocations.swift in Sources */,
 				7FCF889924DC673C007B155A /* LogController.swift in Sources */,
 				7FCF889424DC673C007B155A /* DownloadQueue.swift in Sources */,
 				7FCF88B524DDB622007B155A /* GIPArguments.swift in Sources */,
+				7F77AE7826475C4D00CC524F /* FileManager+DirectoryLocations.swift in Sources */,
 				7FCF889224DC673C007B155A /* ProgramCache.swift in Sources */,
 				7FCF889124DC673C007B155A /* ITVPrograms.swift in Sources */,
 				7FCF88E624DF719C007B155A /* PreferencesView.swift in Sources */,
 				7FCF889624DC673C007B155A /* DownloadQueueView.swift in Sources */,
 				7FCF88BC24DDBC50007B155A /* GIASearch.swift in Sources */,
 				7FCF889824DC673C007B155A /* MainView.swift in Sources */,
-				7FCF888F24DC673C007B155A /* Program.swift in Sources */,
+				7FCF888F24DC673C007B155A /* Programme.swift in Sources */,
 				7FCF88E324DF4AC7007B155A /* Preferences.swift in Sources */,
+				7F77AE722647296F00CC524F /* ITVMetadataExtractor.swift in Sources */,
 				7FCF888E24DC673C007B155A /* TVFormat.swift in Sources */,
 				7FCF889F24DC684C007B155A /* AppDelegate.swift in Sources */,
-				7FCF889024DC673C007B155A /* ITVProgram.swift in Sources */,
+				7FCF889024DC673C007B155A /* ITVProgramme.swift in Sources */,
 				7FCF889D24DC6841007B155A /* ContentView.swift in Sources */,
 				7FCF88E024DF222A007B155A /* Data.swift in Sources */,
+				7F77AE6B264711B200CC524F /* SafariScripting.swift in Sources */,
 				7FCF88D624DE20AE007B155A /* DownloadHistory.swift in Sources */,
 				7FCF888D24DC673C007B155A /* RadioFormat.swift in Sources */,
+				7F77AE6F264711ED00CC524F /* SBApplicationProtocol.swift in Sources */,
 				7FCF889724DC673C007B155A /* LogView.swift in Sources */,
 				7FCF889324DC673C007B155A /* SearchView.swift in Sources */,
-				7FA4E7DD24E2430200A4B5E5 /* GetExtendedBBCMetadata.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -402,15 +429,16 @@
 			files = (
 				7FCF88EA24DF71B2007B155A /* PreferencePanelView.swift in Sources */,
 				7FCF88D724DE20AE007B155A /* DownloadHistory.swift in Sources */,
-				7FCF88D124DDD931007B155A /* Program.swift in Sources */,
+				7F77AE732647296F00CC524F /* ITVMetadataExtractor.swift in Sources */,
+				7FCF88D124DDD931007B155A /* Programme.swift in Sources */,
 				7FCF88E424DF4AC7007B155A /* Preferences.swift in Sources */,
 				7FCF88E724DF719C007B155A /* PreferencesView.swift in Sources */,
 				7FCF88CA24DDD7EF007B155A /* LogController.swift in Sources */,
+				7F77AE7926475C4D00CC524F /* FileManager+DirectoryLocations.swift in Sources */,
 				7FCF88D024DDD879007B155A /* TestLogger.swift in Sources */,
 				7FCF88E124DF222A007B155A /* Data.swift in Sources */,
 				7FCF88CE24DDD817007B155A /* Logging.swift in Sources */,
 				7FCF88C424DDD71F007B155A /* main.swift in Sources */,
-				7FCF88CB24DDD7F2007B155A /* FileManager+DirectoryLocations.swift in Sources */,
 				7FCF88D224DDD937007B155A /* Series.swift in Sources */,
 				7FCF88C824DDD77A007B155A /* GIASearch.swift in Sources */,
 				7FCF88C924DDD780007B155A /* GIPArguments.swift in Sources */,
@@ -457,6 +485,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -518,6 +547,7 @@
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
 				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
 				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
@@ -598,6 +628,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "./Search Testing/testSearch.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = NO;
@@ -612,6 +643,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = "./Search Testing/testSearch.entitlements";
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = NO;

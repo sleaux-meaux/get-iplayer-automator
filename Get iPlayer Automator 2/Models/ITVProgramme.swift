@@ -7,6 +7,6 @@
 
 import Foundation
 
-class ITVProgram: Program, Codable {
+class ITVProgramme: Programme, Codable {
 }
 
