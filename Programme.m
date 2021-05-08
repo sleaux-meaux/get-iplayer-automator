@@ -461,12 +461,7 @@
         if ([wantedID isEqualToString:pid] || [wantedID isEqualToString:index]) {
             found=YES;
 
-            if ([type isEqualToString:@"itv"] && season.length > 0) {
-                self.showName = [NSString stringWithFormat:@"%@: Season %@", showName, season];
-            } else {
-                self.showName = showName;
-            }
-
+            self.showName = showName;
             self.episodeName = episode;
             self.lastBroadcast = [dateFormatter dateFromString:dateAired];
             self.lastBroadcastString = [NSDateFormatter localizedStringFromDate:self.lastBroadcast dateStyle:NSDateFormatterMediumStyle timeStyle:NSDateFormatterNoStyle];
@@ -501,8 +496,9 @@
             self.status = @"Unknown: Not in cache";
         }
         
-        self.processedPID = NO;
-        [self getNameFromPID];
+        if (![self.tvNetwork isEqualToString:@"ITV"]) {
+            [self getNameFromPID];
+        }
     }
 }
 

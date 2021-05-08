@@ -232,6 +232,7 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
             episode.pid = productionID ?? ""
             episode.url = showURL?.absoluteString ?? ""
             episode.lastBroadcast = dateAiredUTC ?? Date()
+            episode.lastBroadcastString = dateTimeString ?? ""
             episode.desc = description ?? ""
             episode.episodeName = episodeTitle ?? ""
             episode.season = season
@@ -355,6 +356,12 @@ public class GetITVShows: NSObject, URLSessionDelegate, URLSessionTaskDelegate, 
             cacheIndexNumber += 1
             cacheEntry += "itv|"
             cacheEntry += episode.seriesName
+
+            // For consistency with get_iplayer append the ': Series x' for shows that are part of a season.
+            if (episode.season > 0) {
+                cacheEntry += ": Series \(episode.season)"
+            }
+
             cacheEntry += "|"
             cacheEntry += episode.episodeName
             cacheEntry += "|\(episode.season)|\(episode.episode)|"
