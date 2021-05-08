@@ -8,7 +8,7 @@
 
 import Foundation
 
-protocol Logging {
+public protocol Logging {
     func addToLog(_ string: String)
     func addToLog(_ string: String, sender: Any?)
 }

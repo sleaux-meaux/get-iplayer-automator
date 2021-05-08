@@ -9,19 +9,19 @@
 import Foundation
 
 
-public func typeArgumentForCacheUpdate(includeITV: Bool) -> String {
+public func typeArgumentForCacheUpdate(includeITV: Bool, forCacheUpdate: Bool) -> String {
     var typeArgument = ""
     var cacheTypes = [String]()
     
-    if let cacheBBC = UserDefaults.standard.value(forKey: "CacheBBC_TV") as? Bool, cacheBBC {
+    if let cacheBBC = UserDefaults.standard.value(forKey: "CacheBBC_TV") as? Bool, cacheBBC || !forCacheUpdate {
         cacheTypes.append("tv")
     }
     
-    if let cacheITV = UserDefaults.standard.value(forKey: "CacheITV_TV") as? Bool, cacheITV {
+    if let cacheITV = UserDefaults.standard.value(forKey: "CacheITV_TV") as? Bool, cacheITV || !forCacheUpdate{
         cacheTypes.append("itv")
     }
     
-    if let cacheRadio = UserDefaults.standard.value(forKey: "CacheBBC_Radio") as? Bool, cacheRadio {
+    if let cacheRadio = UserDefaults.standard.value(forKey: "CacheBBC_Radio") as? Bool, cacheRadio || !forCacheUpdate {
         cacheTypes.append("radio")
     }
     
@@ -40,12 +40,6 @@ public var profileDirArgument: String {
 }
 
 public let cacheExpiryArgument = "-e60480000000000000"
-
-public let noWarningArg = "--nocopyright"
-
-public let standardListFormat = "--listformat=<pid>|<type>|<name> - <episode>|<channel>|<web>|<available>"
-
-public let searchResultFormat = "--listformat=SearchResult|<pid>|<available>|<type>|<name>|<episode>|<channel>|<seriesnum>|<episodenum>|<desc>|<thumbnail>|<web>|<available>"
 
 // Set this for testing.
 public var baseLocation = Bundle.main.bundleURL.appendingPathComponent("Contents/Resources")

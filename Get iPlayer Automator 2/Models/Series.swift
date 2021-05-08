@@ -7,5 +7,5 @@ struct Series : Identifiable {
     let network: String
     let lastFound: Date
     
-    var episodes: [Program] = []
+    var episodes: [Programme] = []
 }

@@ -8,7 +8,7 @@
 import Foundation
 
 class ProgramCache: ObservableObject {
-    var programs: [Program] = []
+    var programs: [Programme] = []
 
     
 }
@@ -19,7 +19,7 @@ class TestProgramCache: ProgramCache {
     public override init() {
         super.init()
         programs = [
-            Program(), Program(), Program(), Program(), Program(), Program(), Program()
+            Programme(), Programme(), Programme(), Programme(), Programme(), Programme(), Programme()
         ]
     }
 }

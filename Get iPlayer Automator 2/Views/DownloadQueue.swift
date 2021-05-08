@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 
 class DownloadQueue: ObservableObject {
-    var programs: [Program] = []
+    var programs: [Programme] = []
     
     
     func loadFromDisk() {
